@@ -7,14 +7,10 @@ export interface CommandResult {
   events: DomainEvent[];
 }
 
-/**
- * DETERMINISTIC GOVERNANCE ENGINE (PURE LOGIC)
- */
 export const executeCommand = (state: ProjectState, command: Command): CommandResult => {
   const newState: ProjectState = JSON.parse(JSON.stringify(state));
   const events: DomainEvent[] = [];
   const activeIdx = newState.currentStageIndex;
-  
   const currentStage = newState.stages[activeIdx];
 
   switch (command.type) {
@@ -36,7 +32,7 @@ export const executeCommand = (state: ProjectState, command: Command): CommandRe
       }));
       currentStage.approvalDocuments = [...currentStage.approvalDocuments, ...documents];
       currentStage.aiStatus = 'IDLE'; 
-      newState.isChainVerified = false; // New data invalidates current manual verification status
+      newState.isChainVerified = false;
       events.push(createEvent('UPLOAD_DOCUMENTS', newState.projectName, { count: files.length }));
       break;
     }
@@ -50,7 +46,7 @@ export const executeCommand = (state: ProjectState, command: Command): CommandRe
 
     case 'RECEIVE_AI_RESULT': {
       if (!currentStage) break;
-      const { auditResult, marketingPitch, insights } = command.payload;
+      const { auditResult, marketingPitch, insights, ipWhitepaper } = command.payload;
       if (auditResult) {
         currentStage.aiStatus = auditResult.status === 'APPROVED' ? 'VERIFIED' : 'FAILED';
         currentStage.complianceScore = auditResult.complianceScore;
@@ -59,27 +55,20 @@ export const executeCommand = (state: ProjectState, command: Command): CommandRe
       }
       if (marketingPitch) currentStage.marketingPitch = marketingPitch;
       if (insights) currentStage.aiInsights = insights;
+      if (ipWhitepaper) currentStage.ipWhitepaper = ipWhitepaper;
       
       events.push(createEvent('AI_SYNC_COMPLETED', newState.projectName, {}));
       break;
     }
 
-    case 'GOVERNANCE_OVERRIDE': {
-      if (!currentStage) break;
-      const { justification } = command.payload;
-      currentStage.aiStatus = 'OVERRIDDEN';
-      currentStage.confidenceScore = 100;
-      events.push(createEvent('GOVERNANCE_OVERRIDE', newState.projectName, { justification }));
-      break;
-    }
-
     case 'APPROVE_STAGE': {
       if (!currentStage) break;
+      // CONSERVATIVE GOVERNANCE: AI alone is not enough.
       if (currentStage.aiStatus !== 'VERIFIED' && currentStage.aiStatus !== 'OVERRIDDEN') {
-        throw new Error("Governance Constraint: AI Verification required.");
+        throw new Error("Governance Block: AI Intelligence must verify consistency first.");
       }
       if (!currentStage.checklist.every(c => c.isCompleted)) {
-        throw new Error("Governance Constraint: Checklist incomplete.");
+        throw new Error("Governance Block: All manual sign-offs are mandatory for audit compliance.");
       }
 
       currentStage.status = StageStatus.COMPLETED;
@@ -98,9 +87,18 @@ export const executeCommand = (state: ProjectState, command: Command): CommandRe
       currentStage.checklist = currentStage.checklist.map(c => 
         c.id === itemId ? { ...c, isCompleted: !c.isCompleted } : c
       );
+      // Changing manual state requires re-validation from AI to ensure the state machine stays in sync.
       currentStage.aiStatus = 'IDLE';
       newState.isChainVerified = false;
       events.push(createEvent('TOGGLE_CHECKLIST', newState.projectName, { itemId }));
+      break;
+    }
+
+    case 'GOVERNANCE_OVERRIDE': {
+      if (!currentStage) break;
+      const { justification } = command.payload;
+      currentStage.aiStatus = 'OVERRIDDEN';
+      events.push(createEvent('GOVERNANCE_OVERRIDE', newState.projectName, { justification }));
       break;
     }
 

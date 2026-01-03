@@ -39,14 +39,11 @@ export const performDocumentAudit = async (stage: ProductStage): Promise<AuditRe
       Analysiere die Relation zwischen diesen Dokumenten: ${fileList}.
       
       DEINE MISSION: Finde logische Widersprüche (Cross-Check).
-      Beispiele:
-      - Steht im Lastenheft etwas anderes als im Schaltplan?
-      - Passt die Stückliste (BOM) exakt zum Design?
+      Fokus: Balanced Governance. AI findet Probleme, Human validiert.
       
       KONFIGURATION:
       - Bewerte die Konsistenz (complianceScore).
       - Erstelle eine Liste von 'dependencies' (sourceDoc, targetDoc, status, finding).
-      - Status muss 'CONSISTENT' oder 'CONFLICT' sein.
       
       Antworte in validem JSON.`,
       config: {
@@ -84,12 +81,32 @@ export const performDocumentAudit = async (stage: ProductStage): Promise<AuditRe
   }
 };
 
+export const generateIPWhitepaper = async (projectName: string, stage: ProductStage) => {
+  try {
+    const ai = getAIInstance();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Erstelle ein professionelles Whitepaper zur Datensicherheit für das Projekt "${projectName}". 
+      Themen:
+      1. IP-Protection beim Dokumenten-Upload.
+      2. Warum die KI-Inferenz keine Dokumente dauerhaft speichert (Zero-Retention).
+      3. Wie der deterministische Audit-Log die ISO-Compliance sichert.
+      
+      Format: Strukturiertes Markdown, Enterprise-Tonalität, Deutsch.`,
+      config: { temperature: 0.3 }
+    });
+    return response.text;
+  } catch (error) {
+    return "Whitepaper-Inferenz fehlgeschlagen.";
+  }
+};
+
 export const generateMarketingMaterials = async (projectName: string, stage: ProductStage) => {
   try {
     const ai = getAIInstance();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Schreibe einen Enterprise-Pitch für "${projectName}". Betone, dass dieses Projekt durch Multi-Doc-Intelligence (automatisierter Dokumenten-Cross-Check) validiert wurde. Deutsch, seriös.`,
+      contents: `Schreibe einen Enterprise-Pitch für "${projectName}". Betone die Kombination aus Multi-Doc-Intelligence und konservativer Governance. Deutsch, seriös.`,
       config: { temperature: 0.8 }
     });
     return response.text;

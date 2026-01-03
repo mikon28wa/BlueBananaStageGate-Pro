@@ -70,22 +70,22 @@ export interface ProductStage {
   dependencies: DependencyResult[];
   aiInsights?: string;
   marketingPitch?: string;
+  ipWhitepaper?: string; // New: Security & IP Whitepaper content
   finance: FinancialData;
   roadmap: RoadmapData;
 }
-
-// --- CQRS & ARCHITECTURE TYPES ---
 
 export type CommandType = 
   | 'APPROVE_STAGE' 
   | 'TOGGLE_CHECKLIST' 
   | 'GENERATE_MARKETING' 
+  | 'GENERATE_WHITEPAPER' // New: Generate Security Whitepaper
   | 'EXPORT_AUDIT'
   | 'TRIGGER_AI_AUDIT' 
   | 'RECEIVE_AI_RESULT' 
   | 'UPLOAD_DOCUMENTS'
   | 'GOVERNANCE_OVERRIDE'
-  | 'VERIFY_CHAIN'; // New command for auditor validation
+  | 'VERIFY_CHAIN';
 
 export interface Command {
   type: CommandType;
@@ -101,7 +101,7 @@ export interface SystemEvent {
   message: string;
   timestamp: string;
   auditHash: string;
-  previousHash: string; // Creates the immutable chain
+  previousHash: string;
   evidenceReference?: string;
 }
 
@@ -115,7 +115,7 @@ export interface ReadModel {
     governanceBalance: number;
     integrityScore: number;
     auditStatus: 'VERIFIED' | 'COMPLIANT' | 'WARNING';
-    isChainValid: boolean; // Result of integrity check
+    isChainValid: boolean;
   };
   activeStageDetails: ProductStage | null;
   roadmapView: RoadmapData[];
