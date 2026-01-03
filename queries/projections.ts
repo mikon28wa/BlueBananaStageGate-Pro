@@ -1,43 +1,75 @@
 
-import { ProjectState, ReadModel, SystemEvent, CommandType } from '../types';
+import { ProjectState, ReadModel, SystemEvent, CommandType, StageStatus } from '../types';
 import { DomainEvent } from '../shared/events';
 
-/**
- * PROJECTOR: Erzeugt optimierte Read-Modelle für das Dashboard.
- */
-export const projectReadModel = (state: ProjectState, events: DomainEvent[]): ReadModel => {
-  const currentStage = state.stages[state.currentStageIndex] || null;
-  const totalBudget = state.stages.reduce((acc, s) => acc + s.finance.budget, 0);
-  const totalSpent = state.stages.reduce((acc, s) => acc + s.finance.actualSpent, 0);
+const generateHash = (data: string): string => {
+  let hash = 0;
+  for (let i = 0; i < data.length; i++) {
+    hash = ((hash << 5) - hash) + data.charCodeAt(i);
+    hash |= 0;
+  }
+  return `0x${Math.abs(hash).toString(16).toUpperCase().padStart(8, '0')}`;
+};
 
-  // Berechnung des verifizierten Fortschritts (nur KI-bestätigte Phasen zählen 100%)
-  const verifiedStagesCount = state.stages.filter(s => s.aiStatus === 'VERIFIED' || s.status === 'COMPLETED').length;
+export const projectReadModel = (state: ProjectState, events: DomainEvent[]): ReadModel => {
+  const activeIdx = state.currentStageIndex;
+  const currentStage = state.stages[activeIdx] || null;
+
+  // Build the Hash Chain
+  let lastHash = "0x00000000";
+  const trace: SystemEvent[] = events.map((e): SystemEvent => {
+    const currentHash = generateHash(`${e.type}-${e.timestamp}-${lastHash}`);
+    const eventObj: SystemEvent = {
+      id: e.id,
+      commandType: e.type.split('_')[0] as CommandType,
+      category: getEventCategory(e.type),
+      status: 'SUCCESS',
+      message: formatEventMessage(e),
+      timestamp: new Date(e.timestamp).toLocaleTimeString(),
+      auditHash: currentHash,
+      previousHash: lastHash,
+      evidenceReference: e.aggregateId
+    };
+    lastHash = currentHash;
+    return eventObj;
+  }).reverse();
+
+  const aiActions = events.filter(e => ['AI_SYNC_COMPLETED', 'GENERATE_MARKETING'].includes(e.type)).length;
+  const humanActions = events.filter(e => ['TOGGLE_CHECKLIST', 'GOVERNANCE_OVERRIDE', 'APPROVE_STAGE'].includes(e.type)).length;
+  const balance = (aiActions + humanActions) === 0 ? 50 : (aiActions / (aiActions + humanActions)) * 100;
+
+  const depConsistency = currentStage?.dependencies.length 
+    ? (currentStage.dependencies.filter(d => d.status === 'CONSISTENT').length / currentStage.dependencies.length) * 100 
+    : 0;
+  const integrityScore = currentStage ? (currentStage.complianceScore * 0.7 + depConsistency * 0.3) : 0;
+
+  const verifiedStagesCount = state.stages.filter(s => ['VERIFIED', 'OVERRIDDEN'].includes(s.aiStatus) || s.status === StageStatus.COMPLETED).length;
   const verifiedProgress = (verifiedStagesCount / state.stages.length) * 100;
 
-  const trace: SystemEvent[] = events.map((e): SystemEvent => ({
-    id: e.id,
-    commandType: e.type.split('_')[0] as CommandType,
-    status: e.type.includes('SUCCESS') || e.type.includes('COMPLETED') ? 'SUCCESS' : 'PENDING',
-    message: formatEventMessage(e),
-    timestamp: new Date(e.timestamp).toLocaleTimeString()
-  })).reverse();
+  const isGateReady = currentStage ? (
+    (currentStage.aiStatus === 'VERIFIED' || currentStage.aiStatus === 'OVERRIDDEN') && 
+    currentStage.checklist.every(c => c.isCompleted)
+  ) : false;
 
-  // Dashboard Unlocking Status Logik
-  const isGateReady = currentStage ? (currentStage.aiStatus === 'VERIFIED' && currentStage.checklist.every(c => c.isCompleted)) : false;
+  const isOverrideAvailable = currentStage?.aiStatus === 'FAILED' || (currentStage?.aiStatus === 'VERIFIED' && currentStage.confidenceScore < 60);
 
   return {
     projectOverview: {
       name: state.projectName,
       version: state.architecture.version,
       currentStageName: currentStage?.name || 'Abgeschlossen',
-      progressPercent: (state.currentStageIndex / state.stages.length) * 100,
-      verifiedProgressPercent: verifiedProgress
+      progressPercent: (activeIdx / state.stages.length) * 100,
+      verifiedProgressPercent: verifiedProgress,
+      governanceBalance: balance,
+      integrityScore: Math.round(integrityScore),
+      auditStatus: integrityScore > 80 ? 'VERIFIED' : integrityScore > 50 ? 'COMPLIANT' : 'WARNING',
+      isChainValid: state.isChainVerified
     },
     activeStageDetails: currentStage,
     roadmapView: state.stages.map(s => s.roadmap),
     financialAudit: {
-      totalBudget,
-      totalSpent,
+      totalBudget: state.stages.reduce((acc, s) => acc + s.finance.budget, 0),
+      totalSpent: state.stages.reduce((acc, s) => acc + s.finance.actualSpent, 0),
       stages: state.stages.map(s => ({ 
         name: s.name, 
         spent: s.finance.actualSpent, 
@@ -47,19 +79,33 @@ export const projectReadModel = (state: ProjectState, events: DomainEvent[]): Re
     systemTrace: trace,
     unlockingStatus: {
       isGateReady,
-      reason: !isGateReady ? (currentStage?.aiStatus !== 'VERIFIED' ? "KI-Audit steht noch aus" : "Checkliste unvollständig") : undefined
+      isOverrideAvailable,
+      nextStageAllowed: activeIdx < state.stages.length,
+      isProcessing: false,
+      reason: !isGateReady ? (
+        currentStage?.aiStatus === 'IDLE' ? "Warte auf KI-Integritätscheck" :
+        currentStage?.aiStatus === 'PENDING' ? "Multi-Doc Analyse läuft..." :
+        !currentStage?.checklist.every(c => c.isCompleted) ? "Manuelle Prüfung unvollständig" : 
+        "Abhängigkeitskonflikte blockieren Freigabe"
+      ) : undefined
     }
   };
 };
 
+function getEventCategory(type: string): 'INNOVATION' | 'ASSURANCE' | 'SYSTEM' {
+  if (type.startsWith('AI_') || type.startsWith('GENERATE_') || type.startsWith('RECEIVE_')) return 'INNOVATION';
+  if (type.startsWith('TOGGLE_') || type.startsWith('GOVERNANCE_') || type.startsWith('APPROVE_')) return 'ASSURANCE';
+  return 'SYSTEM';
+}
+
 function formatEventMessage(event: DomainEvent): string {
   switch (event.type) {
-    case 'UPLOAD_DOCUMENTS_SUCCESS': return `Dokumente zur KI-Prüfung hinzugefügt.`;
-    case 'AI_AUDIT_COMPLETED': return `KI-Berechnung abgeschlossen: Score ${event.payload.score}%.`;
-    case 'APPROVE_STAGE_SUCCESS': return `Phasen-Gate erfolgreich passiert.`;
-    case 'TOGGLE_CHECKLIST_SUCCESS': return `Anforderung manuell aktualisiert.`;
-    case 'GENERATE_MARKETING_SUCCESS': return `Marketing-Content generiert.`;
-    case 'EXPORT_AUDIT_SUCCESS': return `Audit-Log exportiert.`;
-    default: return `Operation: ${event.type}`;
+    case 'AI_SYNC_COMPLETED': return `Deterministischer Cross-Check validiert.`;
+    case 'GOVERNANCE_OVERRIDE': return `Manuelles Governance-Mandat durch Auditor erteilt.`;
+    case 'APPROVE_STAGE': return `Phase erfolgreich im Audit-Log finalisiert.`;
+    case 'TOGGLE_CHECKLIST': return `Manuelle Sign-Off Änderung protokolliert.`;
+    case 'UPLOAD_DOCUMENTS': return `Neue Beweismittel (${event.payload.count} Artefakte) zur Prüfung eingereicht.`;
+    case 'TRIGGER_AI_AUDIT': return `Automatisierte Inferenz-Prüfung gestartet.`;
+    default: return `System-Operation: ${event.type}`;
   }
 }

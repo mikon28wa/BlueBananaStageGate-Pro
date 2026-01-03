@@ -8,6 +8,10 @@ interface VerticalStepperProps {
   currentIndex: number;
 }
 
+// Define motion components outside to avoid parser issues with inline casting
+const MotionSvg = motion.svg as any;
+const MotionDiv = motion.div as any;
+
 const VerticalStepper: React.FC<VerticalStepperProps> = ({ stages, currentIndex }) => {
   return (
     <nav className="w-full lg:w-72" aria-label="Product Development Journey">
@@ -33,7 +37,8 @@ const VerticalStepper: React.FC<VerticalStepperProps> = ({ stages, currentIndex 
                     }`}
                   >
                     {isCompleted ? (
-                      <motion.svg 
+                      /* Use pre-defined motion component */
+                      <MotionSvg 
                         initial={{ scale: 0 }} 
                         animate={{ scale: 1 }}
                         className="w-5 h-5 text-white" 
@@ -42,7 +47,7 @@ const VerticalStepper: React.FC<VerticalStepperProps> = ({ stages, currentIndex 
                         stroke="currentColor"
                       >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </motion.svg>
+                      </MotionSvg>
                     ) : (
                       <span className={`text-sm font-bold ${isActive ? 'text-white' : 'text-slate-400'}`}>
                         {index + 1}
@@ -71,7 +76,8 @@ const VerticalStepper: React.FC<VerticalStepperProps> = ({ stages, currentIndex 
                     {stage.title}
                   </span>
                   {isActive && (
-                    <motion.div 
+                    /* Use pre-defined motion component */
+                    <MotionDiv 
                       layoutId="active-marker"
                       className="hidden lg:block w-full h-0.5 bg-indigo-600 mt-2" 
                     />

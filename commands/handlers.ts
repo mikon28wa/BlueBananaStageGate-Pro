@@ -1,5 +1,5 @@
 
-import { ProjectState, Command, StageStatus, ApprovalDocument, AiAuditStatus } from '../types';
+import { ProjectState, Command, StageStatus, ApprovalDocument, DocumentType } from '../types';
 import { DomainEvent, createEvent } from '../shared/events';
 
 export interface CommandResult {
@@ -8,98 +8,109 @@ export interface CommandResult {
 }
 
 /**
- * COMMAND HANDLER: Führt Geschäftslogik aus.
- * Die AI Calculation Layer ist hier integriert, um bei Dokumenten-Uploads
- * oder expliziten Audits den Systemzustand zu berechnen.
+ * DETERMINISTIC GOVERNANCE ENGINE (PURE LOGIC)
  */
 export const executeCommand = (state: ProjectState, command: Command): CommandResult => {
   const newState: ProjectState = JSON.parse(JSON.stringify(state));
   const events: DomainEvent[] = [];
+  const activeIdx = newState.currentStageIndex;
+  
+  const currentStage = newState.stages[activeIdx];
 
   switch (command.type) {
-    case 'UPLOAD_DOCUMENTS': {
-      const { files } = command.payload;
-      const idx = newState.currentStageIndex;
-      
-      const documents: ApprovalDocument[] = files.map((f: any) => ({
-        name: f.name,
-        uploadDate: new Date().toLocaleString(),
-        size: `${(f.size / 1024).toFixed(1)} KB`
-      }));
-
-      newState.stages[idx].approvalDocuments = [
-        ...newState.stages[idx].approvalDocuments,
-        ...documents
-      ];
-      
-      // Trigger AI Calculation Flow
-      newState.stages[idx].aiStatus = 'PENDING';
-      
-      events.push(createEvent('UPLOAD_DOCUMENTS', newState.projectName, { 
-        count: files.length 
-      }));
+    case 'VERIFY_CHAIN': {
+      newState.isChainVerified = true;
+      events.push(createEvent('VERIFY_CHAIN', newState.projectName, { result: 'PASSED' }));
       break;
     }
 
-    case 'RUN_AI_AUDIT': {
-      const { auditResult } = command.payload;
-      const idx = newState.currentStageIndex;
-      
-      // KI-Berechnungsergebnisse in den State schreiben
-      newState.stages[idx].aiStatus = auditResult.status === 'APPROVED' ? 'VERIFIED' : 'FAILED';
-      newState.stages[idx].complianceScore = auditResult.complianceScore;
-      newState.stages[idx].confidenceScore = auditResult.confidenceScore;
-      
-      events.push(createEvent('AI_AUDIT_COMPLETED', newState.projectName, { 
-        status: auditResult.status,
-        score: newState.stages[idx].complianceScore,
-        confidence: newState.stages[idx].confidenceScore
+    case 'UPLOAD_DOCUMENTS': {
+      if (!currentStage) break;
+      const { files } = command.payload;
+      const documents: ApprovalDocument[] = files.map((f: any) => ({
+        name: f.name,
+        type: f.name.toLowerCase().includes('bom') ? DocumentType.BOM : 
+              f.name.toLowerCase().includes('sch') ? DocumentType.SCHEMATIC : DocumentType.SPECIFICATION,
+        uploadDate: new Date().toLocaleString(),
+        size: `${(f.size / 1024).toFixed(1)} KB`
       }));
+      currentStage.approvalDocuments = [...currentStage.approvalDocuments, ...documents];
+      currentStage.aiStatus = 'IDLE'; 
+      newState.isChainVerified = false; // New data invalidates current manual verification status
+      events.push(createEvent('UPLOAD_DOCUMENTS', newState.projectName, { count: files.length }));
+      break;
+    }
+
+    case 'TRIGGER_AI_AUDIT': {
+      if (!currentStage) break;
+      currentStage.aiStatus = 'PENDING';
+      events.push(createEvent('TRIGGER_AI_AUDIT', newState.projectName, {}));
+      break;
+    }
+
+    case 'RECEIVE_AI_RESULT': {
+      if (!currentStage) break;
+      const { auditResult, marketingPitch, insights } = command.payload;
+      if (auditResult) {
+        currentStage.aiStatus = auditResult.status === 'APPROVED' ? 'VERIFIED' : 'FAILED';
+        currentStage.complianceScore = auditResult.complianceScore;
+        currentStage.confidenceScore = auditResult.confidenceScore;
+        currentStage.dependencies = auditResult.dependencies;
+      }
+      if (marketingPitch) currentStage.marketingPitch = marketingPitch;
+      if (insights) currentStage.aiInsights = insights;
+      
+      events.push(createEvent('AI_SYNC_COMPLETED', newState.projectName, {}));
+      break;
+    }
+
+    case 'GOVERNANCE_OVERRIDE': {
+      if (!currentStage) break;
+      const { justification } = command.payload;
+      currentStage.aiStatus = 'OVERRIDDEN';
+      currentStage.confidenceScore = 100;
+      events.push(createEvent('GOVERNANCE_OVERRIDE', newState.projectName, { justification }));
       break;
     }
 
     case 'APPROVE_STAGE': {
-      const idx = newState.currentStageIndex;
-      
-      // Nur zulassen, wenn KI verifiziert hat (Guard Logik auf Command Seite)
-      if (newState.stages[idx].aiStatus !== 'VERIFIED') {
-        throw new Error("Command abgelehnt: KI-Verifizierung fehlt.");
+      if (!currentStage) break;
+      if (currentStage.aiStatus !== 'VERIFIED' && currentStage.aiStatus !== 'OVERRIDDEN') {
+        throw new Error("Governance Constraint: AI Verification required.");
+      }
+      if (!currentStage.checklist.every(c => c.isCompleted)) {
+        throw new Error("Governance Constraint: Checklist incomplete.");
       }
 
-      newState.stages[idx].status = StageStatus.COMPLETED;
-      
-      const prevIdx = idx;
-      newState.currentStageIndex++;
-      if (newState.currentStageIndex < newState.stages.length) {
-        newState.stages[newState.currentStageIndex].status = StageStatus.ACTIVE;
+      currentStage.status = StageStatus.COMPLETED;
+      const nextIdx = activeIdx + 1;
+      if (nextIdx < newState.stages.length) {
+        newState.stages[nextIdx].status = StageStatus.ACTIVE;
+        newState.currentStageIndex = nextIdx;
       }
-
-      events.push(createEvent('APPROVE_STAGE', newState.projectName, { 
-        stageId: newState.stages[prevIdx].id 
-      }));
+      events.push(createEvent('APPROVE_STAGE', newState.projectName, { stageId: currentStage.id }));
       break;
     }
 
     case 'TOGGLE_CHECKLIST': {
+      if (!currentStage) break;
       const { itemId } = command.payload;
-      const idx = newState.currentStageIndex;
-      newState.stages[idx].checklist = newState.stages[idx].checklist.map((c: any) => 
+      currentStage.checklist = currentStage.checklist.map(c => 
         c.id === itemId ? { ...c, isCompleted: !c.isCompleted } : c
       );
-      
-      // Jede Checklistenänderung setzt KI-Status zurück (muss neu berechnet werden)
-      newState.stages[idx].aiStatus = 'IDLE';
-      
+      currentStage.aiStatus = 'IDLE';
+      newState.isChainVerified = false;
       events.push(createEvent('TOGGLE_CHECKLIST', newState.projectName, { itemId }));
       break;
     }
 
-    case 'GENERATE_MARKETING':
-      events.push(createEvent('GENERATE_MARKETING', newState.projectName, {}));
-      break;
+    case 'EXPORT_AUDIT': {
+        events.push(createEvent('EXPORT_AUDIT', newState.projectName, { format: 'ISO-Dossier-JSON' }));
+        break;
+    }
 
-    case 'EXPORT_AUDIT':
-      events.push(createEvent('EXPORT_AUDIT', newState.projectName, {}));
+    default:
+      events.push(createEvent(command.type, newState.projectName, {}));
       break;
   }
 

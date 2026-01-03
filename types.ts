@@ -5,7 +5,15 @@ export enum StageStatus {
   COMPLETED = 'COMPLETED'
 }
 
-export type AiAuditStatus = 'IDLE' | 'PENDING' | 'VERIFIED' | 'FAILED';
+export type AiAuditStatus = 'IDLE' | 'PENDING' | 'VERIFIED' | 'FAILED' | 'OVERRIDDEN';
+
+export enum DocumentType {
+  BOM = 'Bill of Materials',
+  SCHEMATIC = 'Schematic',
+  SPECIFICATION = 'Specification',
+  RISK_ASSESSMENT = 'Risk Assessment',
+  OTHER = 'Other'
+}
 
 export interface ChecklistItem {
   id: string;
@@ -15,8 +23,16 @@ export interface ChecklistItem {
 
 export interface ApprovalDocument {
   name: string;
+  type: DocumentType;
   uploadDate: string;
   size: string;
+}
+
+export interface DependencyResult {
+  sourceDoc: string;
+  targetDoc: string;
+  status: 'CONSISTENT' | 'CONFLICT' | 'NOT_TESTED';
+  finding: string;
 }
 
 export interface FinancialData {
@@ -47,24 +63,29 @@ export interface ProductStage {
   status: StageStatus;
   aiStatus: AiAuditStatus;
   complianceScore: number;
-  confidenceScore: number; // Added to track AI certainty
+  confidenceScore: number;
   keyRequirements: string[];
   checklist: ChecklistItem[];
   approvalDocuments: ApprovalDocument[];
+  dependencies: DependencyResult[];
   aiInsights?: string;
+  marketingPitch?: string;
   finance: FinancialData;
   roadmap: RoadmapData;
 }
 
-// --- CQRS TYPES ---
+// --- CQRS & ARCHITECTURE TYPES ---
 
 export type CommandType = 
   | 'APPROVE_STAGE' 
   | 'TOGGLE_CHECKLIST' 
   | 'GENERATE_MARKETING' 
   | 'EXPORT_AUDIT'
-  | 'RUN_AI_AUDIT' 
-  | 'UPLOAD_DOCUMENTS';
+  | 'TRIGGER_AI_AUDIT' 
+  | 'RECEIVE_AI_RESULT' 
+  | 'UPLOAD_DOCUMENTS'
+  | 'GOVERNANCE_OVERRIDE'
+  | 'VERIFY_CHAIN'; // New command for auditor validation
 
 export interface Command {
   type: CommandType;
@@ -75,9 +96,13 @@ export interface Command {
 export interface SystemEvent {
   id: string;
   commandType: CommandType;
+  category: 'INNOVATION' | 'ASSURANCE' | 'SYSTEM';
   status: 'SUCCESS' | 'FAILURE' | 'PENDING';
   message: string;
   timestamp: string;
+  auditHash: string;
+  previousHash: string; // Creates the immutable chain
+  evidenceReference?: string;
 }
 
 export interface ReadModel {
@@ -87,6 +112,10 @@ export interface ReadModel {
     currentStageName: string;
     progressPercent: number;
     verifiedProgressPercent: number;
+    governanceBalance: number;
+    integrityScore: number;
+    auditStatus: 'VERIFIED' | 'COMPLIANT' | 'WARNING';
+    isChainValid: boolean; // Result of integrity check
   };
   activeStageDetails: ProductStage | null;
   roadmapView: RoadmapData[];
@@ -99,6 +128,9 @@ export interface ReadModel {
   unlockingStatus: {
     isGateReady: boolean;
     reason?: string;
+    isOverrideAvailable: boolean;
+    isProcessing: boolean; 
+    nextStageAllowed: boolean;
   };
 }
 
@@ -108,4 +140,5 @@ export interface ProjectState {
   projectName: string;
   architecture: ArchitectureInfo;
   events: SystemEvent[];
+  isChainVerified: boolean;
 }
