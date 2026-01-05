@@ -15,6 +15,35 @@ export enum DocumentType {
   OTHER = 'Other'
 }
 
+export enum UserRole {
+  PROJECT_MANAGER = 'PROJECT_MANAGER',
+  LEAD_ENGINEER = 'LEAD_ENGINEER',
+  QUALITY_AUDITOR = 'QUALITY_AUDITOR',
+  SECURITY_OFFICER = 'SECURITY_OFFICER'
+}
+
+export interface User {
+  id: string;
+  name: string;
+  role: UserRole;
+  avatarInitials: string;
+}
+
+export interface StageApproval {
+  role: UserRole;
+  signerName: string;
+  timestamp: string;
+  signatureHash: string;
+}
+
+export interface DigitalSeal {
+  timestamp: string;
+  certificateId: string;
+  hash: string;
+  issuer: string;
+  standard: string;
+}
+
 export interface SwotItem {
   point: string;
   significance: string;
@@ -107,6 +136,12 @@ export interface ProductStage {
   checklist: ChecklistItem[];
   approvalDocuments: ApprovalDocument[];
   dependencies: DependencyResult[];
+  
+  // New Matrix Fields
+  requiredRoles: UserRole[];
+  approvals: StageApproval[];
+  digitalSeal?: DigitalSeal; // The Certificate
+
   aiInsights?: string;
   marketingPitch?: string;
   ipWhitepaper?: string;
@@ -122,6 +157,7 @@ export type CommandType =
   | 'GENERATE_MARKETING' 
   | 'GENERATE_WHITEPAPER'
   | 'EXPORT_AUDIT'
+  | 'GENERATE_ISO_COMPLIANCE_REPORT'
   | 'TRIGGER_AI_AUDIT' 
   | 'RECEIVE_AI_RESULT' 
   | 'UPLOAD_DOCUMENTS'
@@ -134,6 +170,7 @@ export interface Command {
   type: CommandType;
   payload: any;
   timestamp: number;
+  user?: User; // Trace who triggered it
 }
 
 export interface SystemEvent {
@@ -146,6 +183,7 @@ export interface SystemEvent {
   auditHash: string;
   previousHash: string;
   evidenceReference?: string;
+  actor?: string; // Who did it
 }
 
 export interface ReadModel {

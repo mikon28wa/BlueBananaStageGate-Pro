@@ -1,5 +1,5 @@
 
-import { ProductStage, StageStatus, ArchitectureInfo, IntegrationStatus, InfrastructureConfig } from './types';
+import { ProductStage, StageStatus, ArchitectureInfo, IntegrationStatus, InfrastructureConfig, User, UserRole } from './types';
 
 export const SYSTEM_ARCHITECTURE: ArchitectureInfo = {
   type: "Private Cloud Native",
@@ -8,6 +8,13 @@ export const SYSTEM_ARCHITECTURE: ArchitectureInfo = {
   changeFrequency: "Live System Audits",
   version: "v3.0.0-enterprise"
 };
+
+export const MOCK_USERS: User[] = [
+  { id: 'u1', name: 'Dr. Sarah Weber', role: UserRole.PROJECT_MANAGER, avatarInitials: 'SW' },
+  { id: 'u2', name: 'James Chen', role: UserRole.LEAD_ENGINEER, avatarInitials: 'JC' },
+  { id: 'u3', name: 'Marcus Sterling', role: UserRole.QUALITY_AUDITOR, avatarInitials: 'MS' },
+  { id: 'u4', name: 'Elena Korv', role: UserRole.SECURITY_OFFICER, avatarInitials: 'EK' }
+];
 
 export const INITIAL_INFRASTRUCTURE: InfrastructureConfig = {
   deploymentType: 'VPC_PRIVATE',
@@ -41,6 +48,8 @@ export const INITIAL_STAGES: ProductStage[] = [
     ],
     approvalDocuments: [],
     dependencies: [],
+    requiredRoles: [UserRole.PROJECT_MANAGER, UserRole.QUALITY_AUDITOR], // 4-Augen-Prinzip
+    approvals: [],
     finance: { budget: 15000, actualSpent: 12500, currency: 'EUR' },
     roadmap: { startDate: '2024-01-01', endDate: '2024-02-15', milestone: 'Business Case Ready' }
   },
@@ -60,6 +69,8 @@ export const INITIAL_STAGES: ProductStage[] = [
     ],
     approvalDocuments: [],
     dependencies: [],
+    requiredRoles: [UserRole.LEAD_ENGINEER, UserRole.PROJECT_MANAGER],
+    approvals: [],
     finance: { budget: 45000, actualSpent: 0, currency: 'EUR' },
     roadmap: { startDate: '2024-02-16', endDate: '2024-04-30', milestone: 'Gerber Files Final' }
   },
@@ -79,6 +90,8 @@ export const INITIAL_STAGES: ProductStage[] = [
     ],
     approvalDocuments: [],
     dependencies: [],
+    requiredRoles: [UserRole.QUALITY_AUDITOR, UserRole.LEAD_ENGINEER],
+    approvals: [],
     finance: { budget: 30000, actualSpent: 0, currency: 'EUR' },
     roadmap: { startDate: '2024-05-01', endDate: '2024-06-15', milestone: 'First Article Inspection' }
   },
@@ -98,6 +111,8 @@ export const INITIAL_STAGES: ProductStage[] = [
     ],
     approvalDocuments: [],
     dependencies: [],
+    requiredRoles: [UserRole.SECURITY_OFFICER, UserRole.QUALITY_AUDITOR],
+    approvals: [],
     finance: { budget: 20000, actualSpent: 0, currency: 'EUR' },
     roadmap: { startDate: '2024-06-16', endDate: '2024-07-31', milestone: 'Safety Certification' }
   },
@@ -117,6 +132,8 @@ export const INITIAL_STAGES: ProductStage[] = [
     ],
     approvalDocuments: [],
     dependencies: [],
+    requiredRoles: [UserRole.PROJECT_MANAGER, UserRole.QUALITY_AUDITOR, UserRole.LEAD_ENGINEER], // High stakes = 6-Augen
+    approvals: [],
     finance: { budget: 100000, actualSpent: 0, currency: 'EUR' },
     roadmap: { startDate: '2024-08-01', endDate: '2024-12-31', milestone: 'Mass Production Start' }
   }

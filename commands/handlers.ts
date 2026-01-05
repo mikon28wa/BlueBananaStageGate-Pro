@@ -1,5 +1,5 @@
 
-import { ProjectState, Command, StageStatus, ApprovalDocument, DocumentType } from '../types';
+import { ProjectState, Command, StageStatus, ApprovalDocument, DocumentType, StageApproval, DigitalSeal } from '../types';
 import { DomainEvent, createEvent } from '../shared/events';
 
 export interface CommandResult {
@@ -84,20 +84,61 @@ export const executeCommand = (state: ProjectState, command: Command): CommandRe
 
     case 'APPROVE_STAGE': {
       if (!currentStage) break;
+      
+      const user = command.payload.user; // User passed in payload
+      if (!user) throw new Error("Security Violation: Anonymous approvals denied.");
+
       if (currentStage.aiStatus !== 'VERIFIED' && currentStage.aiStatus !== 'OVERRIDDEN') {
         throw new Error("Governance Block: AI Intelligence must verify consistency first.");
       }
       if (!currentStage.checklist.every(c => c.isCompleted)) {
-        throw new Error("Governance Block: All manual sign-offs are mandatory for audit compliance.");
+        throw new Error("Governance Block: All manual sign-offs are mandatory.");
+      }
+      
+      // Check if user is required
+      if (!currentStage.requiredRoles.includes(user.role)) {
+         throw new Error(`Role Conflict: ${user.role} is not authorized for this gate.`);
       }
 
-      currentStage.status = StageStatus.COMPLETED;
-      const nextIdx = activeIdx + 1;
-      if (nextIdx < newState.stages.length) {
-        newState.stages[nextIdx].status = StageStatus.ACTIVE;
-        newState.currentStageIndex = nextIdx;
+      // Check for duplicate signature
+      if (currentStage.approvals.some(a => a.role === user.role)) {
+         throw new Error("Duplicate Signature Detected.");
       }
-      events.push(createEvent('APPROVE_STAGE', newState.projectName, { stageId: currentStage.id }));
+
+      // Add Signature
+      const newApproval: StageApproval = {
+        role: user.role,
+        signerName: user.name,
+        timestamp: new Date().toLocaleTimeString(),
+        signatureHash: Math.random().toString(16).substr(2, 8).toUpperCase()
+      };
+      
+      currentStage.approvals.push(newApproval);
+      events.push(createEvent('STAGE_SIGNED', newState.projectName, { stageId: currentStage.id, signer: user.name, role: user.role }));
+
+      // Check if ALL required roles have signed (4-Augen-Prinzip)
+      const allSigned = currentStage.requiredRoles.every(reqRole => currentStage.approvals.some(a => a.role === reqRole));
+
+      if (allSigned) {
+        currentStage.status = StageStatus.COMPLETED;
+        
+        // Generate Digital Seal
+        const seal: DigitalSeal = {
+          timestamp: new Date().toISOString(),
+          certificateId: `CRT-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+          hash: Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+          issuer: 'BlueBanana Trust Authority (D-TRUST)',
+          standard: 'PAdES-B-LT (Long Term Validation)'
+        };
+        currentStage.digitalSeal = seal;
+
+        const nextIdx = activeIdx + 1;
+        if (nextIdx < newState.stages.length) {
+          newState.stages[nextIdx].status = StageStatus.ACTIVE;
+          newState.currentStageIndex = nextIdx;
+        }
+        events.push(createEvent('APPROVE_STAGE_FINAL', newState.projectName, { stageId: currentStage.id, certificate: seal.certificateId }));
+      }
       break;
     }
 
@@ -124,6 +165,11 @@ export const executeCommand = (state: ProjectState, command: Command): CommandRe
     case 'EXPORT_AUDIT': {
         events.push(createEvent('EXPORT_AUDIT', newState.projectName, { format: 'ISO-Dossier-JSON' }));
         break;
+    }
+
+    case 'GENERATE_ISO_COMPLIANCE_REPORT': {
+      events.push(createEvent('GENERATE_ISO_COMPLIANCE_REPORT', newState.projectName, { triggeredBy: command.user?.name }));
+      break;
     }
 
     default:

@@ -1,8 +1,8 @@
 
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ReadModel, CommandType } from './types';
-import { INITIAL_STAGES, SYSTEM_ARCHITECTURE, INITIAL_INFRASTRUCTURE, INITIAL_INTEGRATIONS } from './constants';
+import { ReadModel, CommandType, User } from './types';
+import { INITIAL_STAGES, SYSTEM_ARCHITECTURE, INITIAL_INFRASTRUCTURE, INITIAL_INTEGRATIONS, MOCK_USERS } from './constants';
 import { CQRSManager } from './services/cqrsManager';
 import VerticalStepper from './components/VerticalStepper';
 import StageCard from './components/StageCard';
@@ -28,10 +28,13 @@ const App: React.FC = () => {
   const [readModel, setReadModel] = useState<ReadModel>(manager.getReadModel());
   const [activeTab, setActiveTab] = useState<'governance' | 'roadmap' | 'swot' | 'cloud' | 'security' | 'system'>('governance');
   const [notification, setNotification] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<User>(MOCK_USERS[0]); // Default to Project Manager
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   const dispatch = useCallback(async (type: CommandType, payload: any = {}) => {
     try {
-      const result = await manager.dispatch({ type, payload, timestamp: Date.now() });
+      // Pass currentUser in payload for APPROVE_STAGE and traceability
+      const result = await manager.dispatch({ type, payload: { ...payload, user: currentUser }, timestamp: Date.now() });
       setReadModel(result.readModel);
       
       if (type !== 'RECEIVE_AI_RESULT') {
@@ -39,20 +42,37 @@ const App: React.FC = () => {
         setTimeout(() => setNotification(null), 3000);
       }
 
-      if (type === 'EXPORT_AUDIT') {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(result.readModel.systemTrace, null, 2));
-        const downloadAnchorNode = document.createElement('a');
-        downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", "ENTERPRISE_GOVERNANCE_REPORT.json");
-        document.body.appendChild(downloadAnchorNode);
-        downloadAnchorNode.click();
-        downloadAnchorNode.remove();
+      if (type === 'GENERATE_ISO_COMPLIANCE_REPORT') {
+        const currentReadModel = result.readModel;
+        
+        // 1. Datenextraktion aus dem ReadModel
+        const reportData = {
+          reportId: `ISO-${Date.now()}`,
+          projectName: currentReadModel.projectOverview.name, 
+          timestamp: new Date().toISOString(),
+          stage: currentReadModel.activeStageDetails?.title, 
+          integrityScore: currentReadModel.projectOverview.integrityScore, 
+          auditTrail: currentReadModel.systemTrace, // Der unveränderliche Beweis
+          isoNorms: ["ISO 27001", "ISO 9001", "DSGVO Art. 15"] // Deine Referenzwerte
+        };
+
+        // 2. Erstellung des Blob (Simuliert PDF/A Struktur)
+        const jsonBlob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(jsonBlob);
+        
+        // 3. Download-Trigger für die Beweislast
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `KONFORMITÄTSBERICHT_${reportData.projectName.replace(/\s+/g, '_')}_${reportData.stage ? reportData.stage.replace(/\s+/g, '_') : 'ALL'}.pdf`; // PDF-Endung für das Management
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       }
     } catch (e: any) {
       setNotification(`Safety Block: ${e.message}`);
       setTimeout(() => setNotification(null), 4000);
     }
-  }, []);
+  }, [currentUser]);
 
   return (
     <div className="min-h-screen bg-[#0038A8] flex flex-col font-sans text-slate-900 selection:bg-indigo-100">
@@ -96,13 +116,53 @@ const App: React.FC = () => {
           </nav>
           
           <div className="hidden lg:flex items-center gap-10">
+             {/* User Switcher */}
+             <div className="relative">
+                <button 
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center gap-3 bg-white pl-2 pr-6 py-2 rounded-full border border-slate-200 shadow-sm hover:shadow-md transition-all"
+                >
+                  <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-white text-xs font-black">
+                     {currentUser.avatarInitials}
+                  </div>
+                  <div className="text-left">
+                     <p className="text-[9px] font-black uppercase text-slate-400 leading-none mb-1">Signed in as</p>
+                     <p className="text-xs font-bold text-slate-900 leading-none">{currentUser.name}</p>
+                  </div>
+                </button>
+
+                <AnimatePresence>
+                  {showUserMenu && (
+                    <MotionDiv 
+                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                      className="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-50 overflow-hidden"
+                    >
+                      {MOCK_USERS.map(user => (
+                        <button 
+                          key={user.id}
+                          onClick={() => { setCurrentUser(user); setShowUserMenu(false); }}
+                          className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left ${currentUser.id === user.id ? 'bg-indigo-50 text-indigo-900' : 'hover:bg-slate-50 text-slate-600'}`}
+                        >
+                           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black ${currentUser.id === user.id ? 'bg-indigo-200 text-indigo-700' : 'bg-slate-100 text-slate-400'}`}>
+                              {user.avatarInitials}
+                           </div>
+                           <div>
+                              <p className="text-xs font-bold">{user.name}</p>
+                              <p className="text-[9px] uppercase font-black opacity-50">{user.role}</p>
+                           </div>
+                        </button>
+                      ))}
+                    </MotionDiv>
+                  )}
+                </AnimatePresence>
+             </div>
+
             <div className="flex flex-col items-end">
                <span className="text-[9px] font-black text-slate-400 uppercase mb-1">Silo Connectivity</span>
                <span className="text-[11px] font-black uppercase text-indigo-600">
                   {readModel.projectOverview.siloConnectivityScore}%
                </span>
             </div>
-            <button onClick={() => dispatch('EXPORT_AUDIT')} className="bg-slate-900 text-white px-10 py-4.5 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-2xl active:scale-95">Download Dossier</button>
           </div>
         </div>
       </header>
@@ -156,7 +216,8 @@ const App: React.FC = () => {
             {activeTab === 'governance' && (
               readModel.activeStageDetails ? (
                 <StageCard 
-                  stage={readModel.activeStageDetails} 
+                  stage={readModel.activeStageDetails}
+                  currentUser={currentUser}
                   onUpload={(files) => dispatch('UPLOAD_DOCUMENTS', { files })}
                   onRunAudit={() => dispatch('TRIGGER_AI_AUDIT')}
                   onOverride={(justification) => dispatch('GOVERNANCE_OVERRIDE', { justification })}
@@ -173,7 +234,7 @@ const App: React.FC = () => {
                 <div className="bg-white p-40 rounded-[5rem] shadow-4xl text-center border border-white/20">
                   <h2 className="text-6xl font-black mb-8 tracking-tighter">Governance Certified</h2>
                   <p className="text-2xl text-slate-500 mb-16 max-w-2xl mx-auto font-medium">All systems synced. All silos broken. Audit-Log immutable.</p>
-                  <button onClick={() => dispatch('EXPORT_AUDIT')} className="bg-slate-900 text-white px-16 py-7 rounded-[2rem] font-black uppercase tracking-[0.35em] shadow-4xl hover:bg-indigo-600 transition-all">Export Final Audit Dossier</button>
+                  <button onClick={() => dispatch('GENERATE_ISO_COMPLIANCE_REPORT')} className="bg-slate-900 text-white px-16 py-7 rounded-[2rem] font-black uppercase tracking-[0.35em] shadow-4xl hover:bg-indigo-600 transition-all">Download ISO Compliance Report</button>
                 </div>
               )
             )}
