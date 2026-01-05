@@ -15,6 +15,27 @@ export enum DocumentType {
   OTHER = 'Other'
 }
 
+export interface SwotItem {
+  point: string;
+  significance: string;
+  impact: 'low' | 'medium' | 'high';
+  isAssumption?: boolean;
+}
+
+export interface SwotData {
+  strengths: SwotItem[];
+  weaknesses: SwotItem[];
+  opportunities: SwotItem[];
+  threats: SwotItem[];
+  strategicRisks: string[];
+  leveragePoints: string[];
+  positioning: 'Conservative' | 'Balanced' | 'Aggressive';
+  recommendations: {
+    shortTerm: string[];
+    midTerm: string[];
+  };
+}
+
 export interface ChecklistItem {
   id: string;
   label: string;
@@ -26,6 +47,7 @@ export interface ApprovalDocument {
   type: DocumentType;
   uploadDate: string;
   size: string;
+  sourceSystem?: string;
 }
 
 export interface DependencyResult {
@@ -45,6 +67,23 @@ export interface RoadmapData {
   startDate: string;
   endDate: string;
   milestone: string;
+}
+
+export interface IntegrationStatus {
+  id: string;
+  systemName: string;
+  type: 'ERP' | 'PLM' | 'CAD' | 'CRM';
+  status: 'CONNECTED' | 'DISCONNECTED' | 'SYNCING';
+  lastSync: string;
+  silosBroken: number;
+}
+
+export interface InfrastructureConfig {
+  deploymentType: 'PUBLIC' | 'VPC_PRIVATE' | 'ON_PREMISE';
+  encryptionStatus: string;
+  vpcTunnelId?: string;
+  region: string;
+  modelIsolation: boolean;
 }
 
 export interface ArchitectureInfo {
@@ -70,7 +109,9 @@ export interface ProductStage {
   dependencies: DependencyResult[];
   aiInsights?: string;
   marketingPitch?: string;
-  ipWhitepaper?: string; // New: Security & IP Whitepaper content
+  ipWhitepaper?: string;
+  swot?: SwotData;
+  infrastructureAdvisory?: string;
   finance: FinancialData;
   roadmap: RoadmapData;
 }
@@ -79,13 +120,15 @@ export type CommandType =
   | 'APPROVE_STAGE' 
   | 'TOGGLE_CHECKLIST' 
   | 'GENERATE_MARKETING' 
-  | 'GENERATE_WHITEPAPER' // New: Generate Security Whitepaper
+  | 'GENERATE_WHITEPAPER'
   | 'EXPORT_AUDIT'
   | 'TRIGGER_AI_AUDIT' 
   | 'RECEIVE_AI_RESULT' 
   | 'UPLOAD_DOCUMENTS'
   | 'GOVERNANCE_OVERRIDE'
-  | 'VERIFY_CHAIN';
+  | 'VERIFY_CHAIN'
+  | 'SYNC_INTEGRATION'
+  | 'SWITCH_INFRASTRUCTURE';
 
 export interface Command {
   type: CommandType;
@@ -96,7 +139,7 @@ export interface Command {
 export interface SystemEvent {
   id: string;
   commandType: CommandType;
-  category: 'INNOVATION' | 'ASSURANCE' | 'SYSTEM';
+  category: 'INNOVATION' | 'ASSURANCE' | 'SYSTEM' | 'INFRASTRUCTURE';
   status: 'SUCCESS' | 'FAILURE' | 'PENDING';
   message: string;
   timestamp: string;
@@ -116,8 +159,11 @@ export interface ReadModel {
     integrityScore: number;
     auditStatus: 'VERIFIED' | 'COMPLIANT' | 'WARNING';
     isChainValid: boolean;
+    siloConnectivityScore: number;
   };
   activeStageDetails: ProductStage | null;
+  infrastructure: InfrastructureConfig;
+  integrations: IntegrationStatus[];
   roadmapView: RoadmapData[];
   financialAudit: {
     totalBudget: number;
@@ -139,6 +185,8 @@ export interface ProjectState {
   stages: ProductStage[];
   projectName: string;
   architecture: ArchitectureInfo;
+  infrastructure: InfrastructureConfig;
+  integrations: IntegrationStatus[];
   events: SystemEvent[];
   isChainVerified: boolean;
 }

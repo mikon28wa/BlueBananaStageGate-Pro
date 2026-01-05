@@ -20,20 +20,37 @@ export const executeCommand = (state: ProjectState, command: Command): CommandRe
       break;
     }
 
+    case 'SYNC_INTEGRATION': {
+      const { systemId } = command.payload;
+      newState.integrations = newState.integrations.map(int => 
+        int.id === systemId ? { ...int, status: 'SYNCING', lastSync: 'Just now' } : int
+      );
+      events.push(createEvent('SYNC_INTEGRATION', newState.projectName, { systemId }));
+      break;
+    }
+
+    case 'SWITCH_INFRASTRUCTURE': {
+      const { type } = command.payload;
+      newState.infrastructure.deploymentType = type;
+      events.push(createEvent('SWITCH_INFRASTRUCTURE', newState.projectName, { newType: type }));
+      break;
+    }
+
     case 'UPLOAD_DOCUMENTS': {
       if (!currentStage) break;
-      const { files } = command.payload;
+      const { files, sourceSystem } = command.payload;
       const documents: ApprovalDocument[] = files.map((f: any) => ({
         name: f.name,
         type: f.name.toLowerCase().includes('bom') ? DocumentType.BOM : 
               f.name.toLowerCase().includes('sch') ? DocumentType.SCHEMATIC : DocumentType.SPECIFICATION,
         uploadDate: new Date().toLocaleString(),
-        size: `${(f.size / 1024).toFixed(1)} KB`
+        size: `${(f.size / 1024).toFixed(1)} KB`,
+        sourceSystem: sourceSystem || 'Manual Upload'
       }));
       currentStage.approvalDocuments = [...currentStage.approvalDocuments, ...documents];
       currentStage.aiStatus = 'IDLE'; 
       newState.isChainVerified = false;
-      events.push(createEvent('UPLOAD_DOCUMENTS', newState.projectName, { count: files.length }));
+      events.push(createEvent('UPLOAD_DOCUMENTS', newState.projectName, { count: files.length, source: sourceSystem }));
       break;
     }
 
@@ -52,6 +69,10 @@ export const executeCommand = (state: ProjectState, command: Command): CommandRe
         currentStage.complianceScore = auditResult.complianceScore;
         currentStage.confidenceScore = auditResult.confidenceScore;
         currentStage.dependencies = auditResult.dependencies;
+        currentStage.infrastructureAdvisory = auditResult.infrastructureAdvisory;
+        if (auditResult.swot) {
+          currentStage.swot = auditResult.swot;
+        }
       }
       if (marketingPitch) currentStage.marketingPitch = marketingPitch;
       if (insights) currentStage.aiInsights = insights;
@@ -63,7 +84,6 @@ export const executeCommand = (state: ProjectState, command: Command): CommandRe
 
     case 'APPROVE_STAGE': {
       if (!currentStage) break;
-      // CONSERVATIVE GOVERNANCE: AI alone is not enough.
       if (currentStage.aiStatus !== 'VERIFIED' && currentStage.aiStatus !== 'OVERRIDDEN') {
         throw new Error("Governance Block: AI Intelligence must verify consistency first.");
       }
@@ -87,7 +107,6 @@ export const executeCommand = (state: ProjectState, command: Command): CommandRe
       currentStage.checklist = currentStage.checklist.map(c => 
         c.id === itemId ? { ...c, isCompleted: !c.isCompleted } : c
       );
-      // Changing manual state requires re-validation from AI to ensure the state machine stays in sync.
       currentStage.aiStatus = 'IDLE';
       newState.isChainVerified = false;
       events.push(createEvent('TOGGLE_CHECKLIST', newState.projectName, { itemId }));

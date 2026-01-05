@@ -44,7 +44,7 @@ export class CQRSManager {
       this.isBusy = true;
       try {
         const [auditResult, marketingPitch, insights, ipWhitepaper] = await Promise.all([
-          performDocumentAudit(activeStage),
+          performDocumentAudit(activeStage, this.writeModel.infrastructure),
           generateMarketingMaterials(this.writeModel.projectName, activeStage),
           getStageGuidance(activeStage),
           generateIPWhitepaper(this.writeModel.projectName, activeStage)

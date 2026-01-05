@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { ProductStage, DocumentType, DependencyResult } from "../types";
+import { ProductStage, DocumentType, DependencyResult, InfrastructureConfig, SwotData } from "../types";
 
 const getAIInstance = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -26,24 +26,25 @@ export interface AuditResult {
   complianceScore: number;
   confidenceScore: number;
   dependencies: DependencyResult[];
+  infrastructureAdvisory?: string;
+  swot?: SwotData;
 }
 
-export const performDocumentAudit = async (stage: ProductStage): Promise<AuditResult> => {
+export const performDocumentAudit = async (stage: ProductStage, infra: InfrastructureConfig): Promise<AuditResult> => {
   try {
     const ai = getAIInstance();
-    const fileList = stage.approvalDocuments.map(doc => `${doc.name} (${doc.type})`).join(', ');
+    const fileList = stage.approvalDocuments.map(doc => `${doc.name} (${doc.type}) via ${doc.sourceSystem || 'Manual Upload'}`).join(', ');
     
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
-      contents: `Du bist die BlueBanana Multi-Doc Intelligence Engine. 
-      Analysiere die Relation zwischen diesen Dokumenten: ${fileList}.
+      contents: `Du bist die BlueBanana Enterprise Intelligence Engine. 
+      Analysiere Dokument-Relationen: ${fileList}.
+      Aktuelle Infra: ${infra.deploymentType} (${infra.region}).
       
-      DEINE MISSION: Finde logische Widersprüche (Cross-Check).
-      Fokus: Balanced Governance. AI findet Probleme, Human validiert.
-      
-      KONFIGURATION:
-      - Bewerte die Konsistenz (complianceScore).
-      - Erstelle eine Liste von 'dependencies' (sourceDoc, targetDoc, status, finding).
+      MISSIION:
+      1. Cross-Check BOM/Schaltplan/Spec.
+      2. Generiere eine strukturierte SWOT-Analyse basierend auf dem aktuellen Stage-Status (${stage.name}).
+      3. Erstelle Strategic Insights (Risks, Leverage, Positioning).
       
       Antworte in validem JSON.`,
       config: {
@@ -57,6 +58,26 @@ export const performDocumentAudit = async (stage: ProductStage): Promise<AuditRe
             missingRequirements: { type: Type.ARRAY, items: { type: Type.STRING } },
             complianceScore: { type: Type.NUMBER },
             confidenceScore: { type: Type.NUMBER },
+            infrastructureAdvisory: { type: Type.STRING },
+            swot: {
+              type: Type.OBJECT,
+              properties: {
+                strengths: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { point: { type: Type.STRING }, significance: { type: Type.STRING }, impact: { type: Type.STRING }, isAssumption: { type: Type.BOOLEAN } } } },
+                weaknesses: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { point: { type: Type.STRING }, significance: { type: Type.STRING }, impact: { type: Type.STRING } } } },
+                opportunities: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { point: { type: Type.STRING }, significance: { type: Type.STRING }, impact: { type: Type.STRING } } } },
+                threats: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { point: { type: Type.STRING }, significance: { type: Type.STRING }, impact: { type: Type.STRING } } } },
+                strategicRisks: { type: Type.ARRAY, items: { type: Type.STRING } },
+                leveragePoints: { type: Type.ARRAY, items: { type: Type.STRING } },
+                positioning: { type: Type.STRING },
+                recommendations: {
+                  type: Type.OBJECT,
+                  properties: {
+                    shortTerm: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    midTerm: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  }
+                }
+              }
+            },
             dependencies: {
               type: Type.ARRAY,
               items: {
@@ -70,13 +91,13 @@ export const performDocumentAudit = async (stage: ProductStage): Promise<AuditRe
               }
             }
           },
-          required: ["status", "report", "justification", "missingRequirements", "complianceScore", "confidenceScore", "dependencies"],
+          required: ["status", "report", "justification", "missingRequirements", "complianceScore", "confidenceScore", "dependencies", "infrastructureAdvisory", "swot"],
         },
       },
     });
     return JSON.parse(response.text || '{}') as AuditResult;
   } catch (error) {
-    console.error("Multi-Doc Intelligence Engine Error", error);
+    console.error("Enterprise Intelligence Engine Error", error);
     throw error;
   }
 };
@@ -87,12 +108,7 @@ export const generateIPWhitepaper = async (projectName: string, stage: ProductSt
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Erstelle ein professionelles Whitepaper zur Datensicherheit für das Projekt "${projectName}". 
-      Themen:
-      1. IP-Protection beim Dokumenten-Upload.
-      2. Warum die KI-Inferenz keine Dokumente dauerhaft speichert (Zero-Retention).
-      3. Wie der deterministische Audit-Log die ISO-Compliance sichert.
-      
-      Format: Strukturiertes Markdown, Enterprise-Tonalität, Deutsch.`,
+      Fokus: Private Cloud vs. On-Premise LLM-Isolation. Erwähne Vertex AI VPC Service Controls.`,
       config: { temperature: 0.3 }
     });
     return response.text;
@@ -106,7 +122,7 @@ export const generateMarketingMaterials = async (projectName: string, stage: Pro
     const ai = getAIInstance();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Schreibe einen Enterprise-Pitch für "${projectName}". Betone die Kombination aus Multi-Doc-Intelligence und konservativer Governance. Deutsch, seriös.`,
+      contents: `Schreibe einen Enterprise-Pitch für "${projectName}". Betone die lückenlose Integration in ERP/PLM und die Datensouveränität.`,
       config: { temperature: 0.8 }
     });
     return response.text;

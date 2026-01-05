@@ -46,6 +46,8 @@ export const projectReadModel = (state: ProjectState, events: DomainEvent[]): Re
   const verifiedStagesCount = state.stages.filter(s => ['VERIFIED', 'OVERRIDDEN'].includes(s.aiStatus) || s.status === StageStatus.COMPLETED).length;
   const verifiedProgress = (verifiedStagesCount / state.stages.length) * 100;
 
+  const siloScore = state.integrations.reduce((acc, int) => acc + (int.status === 'CONNECTED' || int.status === 'SYNCING' ? 25 : 0), 0);
+
   const isGateReady = currentStage ? (
     (currentStage.aiStatus === 'VERIFIED' || currentStage.aiStatus === 'OVERRIDDEN') && 
     currentStage.checklist.every(c => c.isCompleted)
@@ -63,9 +65,12 @@ export const projectReadModel = (state: ProjectState, events: DomainEvent[]): Re
       governanceBalance: balance,
       integrityScore: Math.round(integrityScore),
       auditStatus: integrityScore > 80 ? 'VERIFIED' : integrityScore > 50 ? 'COMPLIANT' : 'WARNING',
-      isChainValid: state.isChainVerified
+      isChainValid: state.isChainVerified,
+      siloConnectivityScore: siloScore
     },
     activeStageDetails: currentStage,
+    infrastructure: state.infrastructure,
+    integrations: state.integrations,
     roadmapView: state.stages.map(s => s.roadmap),
     financialAudit: {
       totalBudget: state.stages.reduce((acc, s) => acc + s.finance.budget, 0),
@@ -92,9 +97,10 @@ export const projectReadModel = (state: ProjectState, events: DomainEvent[]): Re
   };
 };
 
-function getEventCategory(type: string): 'INNOVATION' | 'ASSURANCE' | 'SYSTEM' {
+function getEventCategory(type: string): 'INNOVATION' | 'ASSURANCE' | 'SYSTEM' | 'INFRASTRUCTURE' {
   if (type.startsWith('AI_') || type.startsWith('GENERATE_') || type.startsWith('RECEIVE_')) return 'INNOVATION';
   if (type.startsWith('TOGGLE_') || type.startsWith('GOVERNANCE_') || type.startsWith('APPROVE_')) return 'ASSURANCE';
+  if (type.startsWith('SWITCH_') || type.startsWith('SYNC_')) return 'INFRASTRUCTURE';
   return 'SYSTEM';
 }
 
@@ -106,6 +112,8 @@ function formatEventMessage(event: DomainEvent): string {
     case 'TOGGLE_CHECKLIST': return `Manuelle Sign-Off Änderung protokolliert.`;
     case 'UPLOAD_DOCUMENTS': return `Neue Beweismittel (${event.payload.count} Artefakte) zur Prüfung eingereicht.`;
     case 'TRIGGER_AI_AUDIT': return `Automatisierte Inferenz-Prüfung gestartet.`;
+    case 'SYNC_INTEGRATION': return `System-Integration '${event.payload.systemId}' synchronisiert.`;
+    case 'SWITCH_INFRASTRUCTURE': return `Infrastructure-Isolation auf '${event.payload.newType}' umgeschaltet.`;
     default: return `System-Operation: ${event.type}`;
   }
 }

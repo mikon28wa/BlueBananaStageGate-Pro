@@ -1,13 +1,28 @@
 
-import { ProductStage, StageStatus, ArchitectureInfo } from './types';
+import { ProductStage, StageStatus, ArchitectureInfo, IntegrationStatus, InfrastructureConfig } from './types';
 
 export const SYSTEM_ARCHITECTURE: ArchitectureInfo = {
-  type: "Cloud-Native SaaS",
-  architecture: "CQRS with AI Calculation Layer",
-  performance: "Event-Driven Synchronization",
-  changeFrequency: "Real-time Audits",
-  version: "v2.8.0-ai-layer"
+  type: "Private Cloud Native",
+  architecture: "Distributed CQRS with Vertex AI Integration",
+  performance: "0.5ms Sync Latency",
+  changeFrequency: "Live System Audits",
+  version: "v3.0.0-enterprise"
 };
+
+export const INITIAL_INFRASTRUCTURE: InfrastructureConfig = {
+  deploymentType: 'VPC_PRIVATE',
+  encryptionStatus: 'AES-256 GCM',
+  vpcTunnelId: 'TUN-882-VX-SECURE',
+  region: 'europe-west3 (Frankfurt)',
+  modelIsolation: true
+};
+
+export const INITIAL_INTEGRATIONS: IntegrationStatus[] = [
+  { id: 'i1', systemName: 'SAP S/4HANA', type: 'ERP', status: 'CONNECTED', lastSync: '10m ago', silosBroken: 85 },
+  { id: 'i2', systemName: 'Siemens Teamcenter', type: 'PLM', status: 'SYNCING', lastSync: '2m ago', silosBroken: 92 },
+  { id: 'i3', systemName: 'PTC Windchill', type: 'PLM', status: 'CONNECTED', lastSync: '1h ago', silosBroken: 78 },
+  { id: 'i4', systemName: 'Salesforce CRM', type: 'CRM', status: 'DISCONNECTED', lastSync: '2d ago', silosBroken: 45 }
+];
 
 export const INITIAL_STAGES: ProductStage[] = [
   {
@@ -25,7 +40,6 @@ export const INITIAL_STAGES: ProductStage[] = [
       { id: 'c1-2', label: 'Marktanalyse validiert', isCompleted: false }
     ],
     approvalDocuments: [],
-    // Added missing dependencies property to satisfy ProductStage type
     dependencies: [],
     finance: { budget: 15000, actualSpent: 12500, currency: 'EUR' },
     roadmap: { startDate: '2024-01-01', endDate: '2024-02-15', milestone: 'Business Case Ready' }
@@ -45,7 +59,6 @@ export const INITIAL_STAGES: ProductStage[] = [
       { id: 'c2-2', label: 'Material spezifiziert', isCompleted: false }
     ],
     approvalDocuments: [],
-    // Added missing dependencies property to satisfy ProductStage type
     dependencies: [],
     finance: { budget: 45000, actualSpent: 0, currency: 'EUR' },
     roadmap: { startDate: '2024-02-16', endDate: '2024-04-30', milestone: 'Gerber Files Final' }
@@ -65,7 +78,6 @@ export const INITIAL_STAGES: ProductStage[] = [
       { id: 'c3-2', label: 'Funktionstest Hardware', isCompleted: false }
     ],
     approvalDocuments: [],
-    // Added missing dependencies property to satisfy ProductStage type
     dependencies: [],
     finance: { budget: 30000, actualSpent: 0, currency: 'EUR' },
     roadmap: { startDate: '2024-05-01', endDate: '2024-06-15', milestone: 'First Article Inspection' }
@@ -85,7 +97,6 @@ export const INITIAL_STAGES: ProductStage[] = [
       { id: 'c4-2', label: 'Erwärmungstest', isCompleted: false }
     ],
     approvalDocuments: [],
-    // Added missing dependencies property to satisfy ProductStage type
     dependencies: [],
     finance: { budget: 20000, actualSpent: 0, currency: 'EUR' },
     roadmap: { startDate: '2024-06-16', endDate: '2024-07-31', milestone: 'Safety Certification' }
@@ -105,7 +116,6 @@ export const INITIAL_STAGES: ProductStage[] = [
       { id: 'c5-2', label: 'Testabdeckung final', isCompleted: false }
     ],
     approvalDocuments: [],
-    // Added missing dependencies property to satisfy ProductStage type
     dependencies: [],
     finance: { budget: 100000, actualSpent: 0, currency: 'EUR' },
     roadmap: { startDate: '2024-08-01', endDate: '2024-12-31', milestone: 'Mass Production Start' }
