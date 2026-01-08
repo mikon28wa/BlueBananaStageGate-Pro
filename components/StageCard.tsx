@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ProductStage, StageStatus, User, UserRole, DigitalSeal } from '../types';
+import { ProductStage, StageStatus, User, UserRole, DigitalSeal, ActionPlanItem } from '../types';
 
 interface StageCardProps {
   stage: ProductStage;
@@ -17,6 +17,7 @@ interface StageCardProps {
   canUnlock: boolean;
   isOverrideAvailable: boolean;
   unlockReason?: string;
+  actionPlan?: ActionPlanItem[]; // New Prop
 }
 
 const MotionArticle = motion.article as any;
@@ -85,9 +86,42 @@ const DigitalSealDisplay = ({ seal }: { seal: DigitalSeal }) => (
   </MotionDiv>
 );
 
+const GateActionProtocol = ({ plan }: { plan: ActionPlanItem[] }) => (
+  <div className="mt-8 bg-rose-50 border border-rose-100 rounded-[2rem] p-8">
+    <div className="flex items-center gap-4 mb-6">
+      <div className="w-8 h-8 rounded-full bg-rose-500 flex items-center justify-center text-white">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+      </div>
+      <h5 className="text-xs font-black uppercase text-rose-700 tracking-[0.2em]">Gate Locked: Action Plan Required</h5>
+    </div>
+    <div className="space-y-3">
+      {plan.map((item, idx) => (
+        <div key={idx} className="flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-rose-100/50">
+          <div className="flex items-center gap-3">
+             <div className={`w-1.5 h-1.5 rounded-full ${item.priority === 'HIGH' ? 'bg-rose-500' : 'bg-amber-400'}`} />
+             <span className="text-xs font-bold text-slate-700">{item.label}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider bg-slate-50 px-2 py-1 rounded">
+              {item.type}
+            </span>
+            <span className="text-[8px] font-black uppercase text-indigo-500 tracking-wider bg-indigo-50 px-2 py-1 rounded">
+              {item.assignedTo}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+    <div className="mt-6 flex justify-between items-center text-[9px] font-bold text-rose-400 uppercase tracking-widest px-2">
+      <span>Pending Actions: {plan.length}</span>
+      <span>Status: BLOCKED</span>
+    </div>
+  </div>
+);
+
 const StageCard: React.FC<StageCardProps> = ({ 
   stage, currentUser, onUpload, onRunAudit, onApprove, onToggleChecklist, onOverride, 
-  isLastStage, isLoading, aiInsights, canUnlock, isOverrideAvailable, unlockReason 
+  isLastStage, isLoading, aiInsights, canUnlock, isOverrideAvailable, unlockReason, actionPlan
 }) => {
   const [showOverrideDialog, setShowOverrideDialog] = useState(false);
   const [justification, setJustification] = useState("");
@@ -293,10 +327,8 @@ const StageCard: React.FC<StageCardProps> = ({
             )}
             
             <AnimatePresence>
-              {!canUnlock && stage.status !== StageStatus.COMPLETED && (
-                <MotionP initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-[10px] text-center font-black text-rose-500 uppercase tracking-[0.3em] mt-6">
-                  Security Protocol Block: {unlockReason}
-                </MotionP>
+              {!canUnlock && stage.status !== StageStatus.COMPLETED && actionPlan && (
+                 <GateActionProtocol plan={actionPlan} />
               )}
             </AnimatePresence>
           </div>

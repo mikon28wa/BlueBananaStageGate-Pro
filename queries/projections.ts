@@ -1,5 +1,5 @@
 
-import { ProjectState, ReadModel, SystemEvent, CommandType, StageStatus } from '../types';
+import { ProjectState, ReadModel, SystemEvent, CommandType, StageStatus, ActionPlanItem } from '../types';
 import { DomainEvent } from '../shared/events';
 
 const generateHash = (data: string): string => {
@@ -48,10 +48,50 @@ export const projectReadModel = (state: ProjectState, events: DomainEvent[]): Re
 
   const siloScore = state.integrations.reduce((acc, int) => acc + (int.status === 'CONNECTED' || int.status === 'SYNCING' ? 25 : 0), 0);
 
-  const isGateReady = currentStage ? (
-    (currentStage.aiStatus === 'VERIFIED' || currentStage.aiStatus === 'OVERRIDDEN') && 
-    currentStage.checklist.every(c => c.isCompleted)
-  ) : false;
+  // GATE LOGIC & ACTION PLAN GENERATION
+  const actionPlan: ActionPlanItem[] = [];
+  
+  if (currentStage) {
+    // 1. Checklists
+    currentStage.checklist.forEach(item => {
+      if (!item.isCompleted) {
+        actionPlan.push({
+          type: 'CHECKLIST',
+          label: `Complete Task: ${item.label}`,
+          priority: 'HIGH',
+          status: 'PENDING',
+          assignedTo: 'Project Team'
+        });
+      }
+    });
+
+    // 2. AI Integrity
+    if (currentStage.aiStatus !== 'VERIFIED' && currentStage.aiStatus !== 'OVERRIDDEN') {
+      actionPlan.push({
+        type: 'AI_AUDIT',
+        label: currentStage.aiStatus === 'FAILED' ? 'Resolve Audit Conflicts or Override' : 'Run Enterprise Intelligence Check',
+        priority: 'HIGH',
+        status: 'PENDING',
+        assignedTo: 'AI Engine'
+      });
+    }
+
+    // 3. Signatures
+    currentStage.requiredRoles.forEach(role => {
+      const hasSigned = currentStage.approvals.some(a => a.role === role);
+      if (!hasSigned) {
+        actionPlan.push({
+          type: 'SIGNATURE',
+          label: `Pending Sign-off: ${role}`,
+          priority: 'MEDIUM',
+          status: 'PENDING',
+          assignedTo: role
+        });
+      }
+    });
+  }
+
+  const isGateReady = currentStage ? actionPlan.length === 0 : false;
 
   const isOverrideAvailable = currentStage?.aiStatus === 'FAILED' || (currentStage?.aiStatus === 'VERIFIED' && currentStage.confidenceScore < 60);
 
@@ -87,12 +127,8 @@ export const projectReadModel = (state: ProjectState, events: DomainEvent[]): Re
       isOverrideAvailable,
       nextStageAllowed: activeIdx < state.stages.length,
       isProcessing: false,
-      reason: !isGateReady ? (
-        currentStage?.aiStatus === 'IDLE' ? "Warte auf KI-Integritätscheck" :
-        currentStage?.aiStatus === 'PENDING' ? "Multi-Doc Analyse läuft..." :
-        !currentStage?.checklist.every(c => c.isCompleted) ? "Manuelle Prüfung unvollständig" : 
-        "Abhängigkeitskonflikte blockieren Freigabe"
-      ) : undefined
+      reason: !isGateReady ? "Prerequisites incomplete" : undefined,
+      actionPlan
     }
   };
 };

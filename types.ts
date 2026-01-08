@@ -186,6 +186,14 @@ export interface SystemEvent {
   actor?: string; // Who did it
 }
 
+export interface ActionPlanItem {
+  type: 'CHECKLIST' | 'AI_AUDIT' | 'SIGNATURE';
+  label: string;
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  assignedTo?: string;
+  status: 'PENDING' | 'DONE';
+}
+
 export interface ReadModel {
   projectOverview: {
     name: string;
@@ -215,6 +223,7 @@ export interface ReadModel {
     isOverrideAvailable: boolean;
     isProcessing: boolean; 
     nextStageAllowed: boolean;
+    actionPlan: ActionPlanItem[]; // New detailed plan
   };
 }
 

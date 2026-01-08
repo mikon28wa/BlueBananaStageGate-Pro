@@ -7,7 +7,12 @@ import { performDocumentAudit, generateMarketingMaterials, getStageGuidance, gen
 
 /**
  * CQRS MANAGER (APPLICATION SERVICE LAYER)
- * Orchestrates Innovation (AI) & Assurance (Governance)
+ * Orchestrates Innovation (AI) & Assurance (Governance).
+ * 
+ * REPLACES: services/cqrsEngine.ts
+ * This class serves as the central nervous system for the BlueBanana application,
+ * maintaining the Single Source of Truth (Write Model) and projecting the
+ * Read Model for the UI.
  */
 export class CQRSManager {
   private writeModel: ProjectState;
@@ -44,7 +49,7 @@ export class CQRSManager {
       this.isBusy = true;
       try {
         const [auditResult, marketingPitch, insights, ipWhitepaper] = await Promise.all([
-          performDocumentAudit(activeStage, this.writeModel.infrastructure),
+          performDocumentAudit(activeStage, this.writeModel.infrastructure, this.writeModel.integrations),
           generateMarketingMaterials(this.writeModel.projectName, activeStage),
           getStageGuidance(activeStage),
           generateIPWhitepaper(this.writeModel.projectName, activeStage)

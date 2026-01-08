@@ -229,6 +229,7 @@ const App: React.FC = () => {
                   canUnlock={readModel.unlockingStatus.isGateReady}
                   isOverrideAvailable={readModel.unlockingStatus.isOverrideAvailable}
                   unlockReason={readModel.unlockingStatus.reason}
+                  actionPlan={readModel.unlockingStatus.actionPlan}
                 />
               ) : (
                 <div className="bg-white p-40 rounded-[5rem] shadow-4xl text-center border border-white/20">
