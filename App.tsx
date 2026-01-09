@@ -5,6 +5,7 @@ import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { ReadModel, CommandType, User } from './types';
 import { INITIAL_STAGES, SYSTEM_ARCHITECTURE, INITIAL_INFRASTRUCTURE, INITIAL_INTEGRATIONS, MOCK_USERS } from './constants';
 import { CQRSManager } from './services/cqrsManager';
+import { APP_CONFIG } from './services/config';
 
 // Page Imports
 import Governance from './pages/Governance';
@@ -103,8 +104,15 @@ const App: React.FC = () => {
               <h1 className="text-lg font-bold text-white tracking-tight">{readModel.projectOverview.name}</h1>
               <div className="flex items-center gap-3">
                 <span className="text-[9px] font-black text-indigo-300 uppercase tracking-widest">v3.0 Enterprise</span>
-                <span className={`w-1.5 h-1.5 rounded-full ${readModel.projectOverview.isChainValid ? 'bg-emerald-400' : 'bg-slate-500'}`} />
-                <span className="text-[9px] font-medium text-slate-400">{readModel.projectOverview.isChainValid ? 'Verified' : 'Synced'}</span>
+                
+                {/* Environment Badge */}
+                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded border ${APP_CONFIG.environment === 'PRODUCTION' ? 'bg-emerald-500/20 border-emerald-500/30' : 'bg-amber-500/20 border-amber-500/30'}`}>
+                   <div className={`w-1 h-1 rounded-full ${APP_CONFIG.environment === 'PRODUCTION' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} />
+                   <span className={`text-[8px] font-bold uppercase tracking-wide ${APP_CONFIG.environment === 'PRODUCTION' ? 'text-emerald-300' : 'text-amber-300'}`}>
+                      {APP_CONFIG.environment === 'PRODUCTION' ? 'Cloud Run Connected' : 'Sandbox Environment'}
+                   </span>
+                </div>
+
               </div>
             </div>
           </div>
@@ -151,6 +159,11 @@ const App: React.FC = () => {
                            {user.name} <span className="opacity-50 text-[9px] ml-1">({user.role.split('_')[1]})</span>
                         </button>
                       ))}
+                      <div className="border-t border-white/5 p-2">
+                        <button onClick={() => manager.hardReset()} className="w-full text-left px-2 py-1.5 text-[9px] font-bold uppercase text-rose-500 hover:bg-rose-500/10 rounded transition-colors">
+                           System Hard Reset
+                        </button>
+                      </div>
                     </MotionDiv>
                   )}
                 </AnimatePresence>
