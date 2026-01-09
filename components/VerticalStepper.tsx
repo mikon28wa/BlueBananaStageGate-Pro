@@ -8,84 +8,56 @@ interface VerticalStepperProps {
   currentIndex: number;
 }
 
-// Define motion components outside to avoid parser issues with inline casting
-const MotionSvg = motion.svg as any;
 const MotionDiv = motion.div as any;
 
 const VerticalStepper: React.FC<VerticalStepperProps> = ({ stages, currentIndex }) => {
   return (
-    <nav className="w-full lg:w-72" aria-label="Product Development Journey">
-      <ol className="relative flex lg:flex-col gap-4 overflow-x-auto lg:overflow-visible py-4 lg:py-0 hide-scrollbar scroll-smooth">
-        {stages.map((stage, index) => {
-          const isActive = index === currentIndex;
-          const isCompleted = stage.status === StageStatus.COMPLETED || index < currentIndex;
-          const isLocked = !isActive && !isCompleted;
+    <nav className="w-full" aria-label="Progress">
+      <div className="relative">
+        {/* Continuous Line Background */}
+        <div className="absolute left-[19px] top-4 bottom-4 w-0.5 bg-white/10 hidden lg:block" />
 
-          return (
-            <li 
-              key={stage.id}
-              className="flex-shrink-0 lg:flex-shrink"
-              aria-current={isActive ? 'step' : undefined}
-            >
-              <div className="flex lg:items-start gap-4 group">
-                {/* Connector Line - Desktop Only */}
-                <div className="hidden lg:flex flex-col items-center">
-                  <div 
-                    className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
-                      isActive ? 'bg-white border-white shadow-xl shadow-blue-900/50' :
-                      isCompleted ? 'bg-indigo-500 border-indigo-500' : 'bg-white/10 border-white/20'
-                    }`}
-                  >
-                    {isCompleted ? (
-                      <MotionSvg 
-                        initial={{ scale: 0 }} 
-                        animate={{ scale: 1 }}
-                        className="w-5 h-5 text-white" 
-                        fill="none" 
-                        viewBox="0 0 24 24" 
-                        stroke="currentColor"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </MotionSvg>
-                    ) : (
-                      <span className={`text-sm font-bold ${isActive ? 'text-indigo-600' : 'text-white/40'}`}>
-                        {index + 1}
-                      </span>
-                    )}
+        <ol className="relative flex lg:flex-col gap-0 lg:gap-8 overflow-x-auto lg:overflow-visible pb-4 lg:pb-0 hide-scrollbar scroll-smooth px-1">
+          {stages.map((stage, index) => {
+            const isActive = index === currentIndex;
+            const isCompleted = stage.status === StageStatus.COMPLETED || index < currentIndex;
+            
+            return (
+              <li key={stage.id} className="flex-shrink-0 lg:flex-shrink relative z-10 group cursor-default">
+                <div className="flex items-center gap-5 pl-1">
+                  
+                  {/* Indicator Dot */}
+                  <div className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 border-2 ${
+                      isActive ? 'bg-indigo-600 border-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.5)] scale-110' :
+                      isCompleted ? 'bg-emerald-500 border-emerald-400' :
+                      'bg-slate-900 border-slate-700'
+                  }`}>
+                     {isCompleted ? (
+                        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                     ) : (
+                        <span className={`text-xs font-bold ${isActive ? 'text-white' : 'text-slate-500'}`}>{index + 1}</span>
+                     )}
+                     
+                     {/* Active Pulse Ring */}
+                     {isActive && <div className="absolute inset-0 rounded-full border-2 border-indigo-500 animate-ping opacity-20" />}
                   </div>
-                  {index !== stages.length - 1 && (
-                    <div className={`w-0.5 h-12 my-2 transition-colors duration-500 ${isCompleted ? 'bg-indigo-500' : 'bg-white/10'}`} />
-                  )}
-                </div>
 
-                {/* Mobile Dot Indicator */}
-                <div className="lg:hidden">
-                    <div className={`w-3 h-3 rounded-full mt-1.5 ${isActive ? 'bg-white scale-125' : isCompleted ? 'bg-indigo-500' : 'bg-white/20'}`} />
-                </div>
+                  {/* Text Content */}
+                  <div className={`transition-all duration-300 ${isActive ? 'translate-x-1' : 'opacity-60 group-hover:opacity-100'}`}>
+                    <p className={`text-[9px] font-black uppercase tracking-widest mb-0.5 ${isActive ? 'text-indigo-300' : isCompleted ? 'text-emerald-400' : 'text-slate-500'}`}>
+                        {stage.name}
+                    </p>
+                    <p className={`text-sm font-bold truncate max-w-[180px] ${isActive ? 'text-white' : 'text-slate-400'}`}>
+                        {stage.title.split(':')[0]}
+                    </p>
+                  </div>
 
-                <div className="flex flex-col pt-0 lg:pt-1 min-w-[120px]">
-                  <span className={`text-xs font-black uppercase tracking-widest mb-1 transition-colors ${
-                    isActive ? 'text-white' : 'text-white/40'
-                  }`}>
-                    {stage.name}
-                  </span>
-                  <span className={`text-sm font-bold truncate max-w-[150px] lg:max-w-none transition-colors ${
-                    isActive ? 'text-white' : 'text-white/40'
-                  }`}>
-                    {stage.title}
-                  </span>
-                  {isActive && (
-                    <MotionDiv 
-                      layoutId="active-marker"
-                      className="hidden lg:block w-full h-0.5 bg-white mt-2" 
-                    />
-                  )}
                 </div>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
     </nav>
   );
 };
