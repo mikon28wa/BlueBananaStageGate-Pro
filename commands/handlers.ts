@@ -61,10 +61,15 @@ export const executeCommand = (state: ProjectState, command: Command): CommandRe
       break;
     }
 
+    case 'ANALYZE_ECOSYSTEM': {
+      events.push(createEvent('ANALYZE_ECOSYSTEM', newState.projectName, {}));
+      break;
+    }
+
     case 'RECEIVE_AI_RESULT': {
-      if (!currentStage) break;
-      const { auditResult, marketingPitch, insights, ipWhitepaper } = command.payload;
-      if (auditResult) {
+      const { auditResult, marketingPitch, insights, ipWhitepaper, integrationStory } = command.payload;
+      
+      if (auditResult && currentStage) {
         currentStage.aiStatus = auditResult.status === 'APPROVED' ? 'VERIFIED' : 'FAILED';
         currentStage.complianceScore = auditResult.complianceScore;
         currentStage.confidenceScore = auditResult.confidenceScore;
@@ -74,11 +79,16 @@ export const executeCommand = (state: ProjectState, command: Command): CommandRe
           currentStage.swot = auditResult.swot;
         }
       }
-      if (marketingPitch) currentStage.marketingPitch = marketingPitch;
-      if (insights) currentStage.aiInsights = insights;
-      if (ipWhitepaper) currentStage.ipWhitepaper = ipWhitepaper;
       
-      events.push(createEvent('AI_SYNC_COMPLETED', newState.projectName, {}));
+      if (marketingPitch && currentStage) currentStage.marketingPitch = marketingPitch;
+      if (insights && currentStage) currentStage.aiInsights = insights;
+      if (ipWhitepaper && currentStage) currentStage.ipWhitepaper = ipWhitepaper;
+      
+      if (integrationStory) {
+        newState.integrationStory = integrationStory;
+      }
+      
+      events.push(createEvent('AI_SYNC_COMPLETED', newState.projectName, { hasStory: !!integrationStory }));
       break;
     }
 
@@ -169,6 +179,26 @@ export const executeCommand = (state: ProjectState, command: Command): CommandRe
 
     case 'GENERATE_ISO_COMPLIANCE_REPORT': {
       events.push(createEvent('GENERATE_ISO_COMPLIANCE_REPORT', newState.projectName, { triggeredBy: command.user?.name }));
+      break;
+    }
+
+    case 'EXTERNAL_EVENT': {
+      const { action, stageIndex, message } = command.payload;
+      
+      if (action === 'UNLOCK_STAGE' && typeof stageIndex === 'number') {
+        // Forcefully update the stage status for simulation purposes
+        if (newState.stages[stageIndex]) {
+           // Complete previous stages if needed (optional logic, keeping it simple)
+           if (stageIndex > 0) {
+             newState.stages[stageIndex - 1].status = StageStatus.COMPLETED;
+           }
+           newState.stages[stageIndex].status = StageStatus.ACTIVE;
+           newState.currentStageIndex = stageIndex;
+           events.push(createEvent('EXTERNAL_TRIGGER_UNLOCK', newState.projectName, { stage: newState.stages[stageIndex].name, reason: message }));
+        }
+      } else {
+        events.push(createEvent('EXTERNAL_LOG', newState.projectName, { message }));
+      }
       break;
     }
 

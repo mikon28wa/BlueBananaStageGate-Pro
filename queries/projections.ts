@@ -34,7 +34,7 @@ export const projectReadModel = (state: ProjectState, events: DomainEvent[]): Re
     return eventObj;
   }).reverse();
 
-  const aiActions = events.filter(e => ['AI_SYNC_COMPLETED', 'GENERATE_MARKETING'].includes(e.type)).length;
+  const aiActions = events.filter(e => ['AI_SYNC_COMPLETED', 'GENERATE_MARKETING', 'ANALYZE_ECOSYSTEM'].includes(e.type)).length;
   const humanActions = events.filter(e => ['TOGGLE_CHECKLIST', 'GOVERNANCE_OVERRIDE', 'APPROVE_STAGE'].includes(e.type)).length;
   const balance = (aiActions + humanActions) === 0 ? 50 : (aiActions / (aiActions + humanActions)) * 100;
 
@@ -111,6 +111,7 @@ export const projectReadModel = (state: ProjectState, events: DomainEvent[]): Re
     activeStageDetails: currentStage,
     infrastructure: state.infrastructure,
     integrations: state.integrations,
+    integrationStory: state.integrationStory,
     roadmapView: state.stages.map(s => s.roadmap),
     financialAudit: {
       totalBudget: state.stages.reduce((acc, s) => acc + s.finance.budget, 0),
@@ -134,7 +135,7 @@ export const projectReadModel = (state: ProjectState, events: DomainEvent[]): Re
 };
 
 function getEventCategory(type: string): 'INNOVATION' | 'ASSURANCE' | 'SYSTEM' | 'INFRASTRUCTURE' {
-  if (type.startsWith('AI_') || type.startsWith('GENERATE_') || type.startsWith('RECEIVE_')) return 'INNOVATION';
+  if (type.startsWith('AI_') || type.startsWith('GENERATE_') || type.startsWith('RECEIVE_') || type.startsWith('ANALYZE_')) return 'INNOVATION';
   if (type.startsWith('TOGGLE_') || type.startsWith('GOVERNANCE_') || type.startsWith('APPROVE_')) return 'ASSURANCE';
   if (type.startsWith('SWITCH_') || type.startsWith('SYNC_')) return 'INFRASTRUCTURE';
   return 'SYSTEM';
@@ -146,10 +147,13 @@ function formatEventMessage(event: DomainEvent): string {
     case 'GOVERNANCE_OVERRIDE': return `Manuelles Governance-Mandat durch Auditor erteilt.`;
     case 'APPROVE_STAGE': return `Phase erfolgreich im Audit-Log finalisiert.`;
     case 'TOGGLE_CHECKLIST': return `Manuelle Sign-Off Änderung protokolliert.`;
-    case 'UPLOAD_DOCUMENTS': return `Neue Beweismittel (${event.payload.count} Artefakte) zur Prüfung eingereicht.`;
-    case 'TRIGGER_AI_AUDIT': return `Automatisierte Inferenz-Prüfung gestartet.`;
-    case 'SYNC_INTEGRATION': return `System-Integration '${event.payload.systemId}' synchronisiert.`;
-    case 'SWITCH_INFRASTRUCTURE': return `Infrastructure-Isolation auf '${event.payload.newType}' umgeschaltet.`;
-    default: return `System-Operation: ${event.type}`;
+    case 'UPLOAD_DOCUMENTS': return `Artefakte (${event.payload?.count || 1}) sicher im Vault abgelegt.`;
+    case 'TRIGGER_AI_AUDIT': return `Enterprise Intelligence Audit initiiert.`;
+    case 'GENERATE_ISO_COMPLIANCE_REPORT': return `ISO-Konformitätsbericht generiert.`;
+    case 'ANALYZE_ECOSYSTEM': return `Digital Thread Analyse gestartet.`;
+    case 'SYNC_INTEGRATION': return `System-Synchronisation angefordert.`;
+    case 'SWITCH_INFRASTRUCTURE': return `Infrastruktur-Konfiguration aktualisiert.`;
+    case 'VERIFY_CHAIN': return `Blockchain-Verifizierung erfolgreich.`;
+    default: return `${event.type} Event verarbeitet.`;
   }
 }

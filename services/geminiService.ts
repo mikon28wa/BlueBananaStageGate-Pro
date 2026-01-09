@@ -1,8 +1,13 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { ProductStage, DocumentType, DependencyResult, InfrastructureConfig, SwotData, IntegrationStatus } from "../types";
 
-const getAIInstance = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAIInstance = () => {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+        throw new Error("API_KEY not configured in environment variables.");
+    }
+    return new GoogleGenAI({ apiKey });
+};
 
 export const getStageGuidance = async (stage: ProductStage) => {
   try {
@@ -14,6 +19,7 @@ export const getStageGuidance = async (stage: ProductStage) => {
     });
     return response.text;
   } catch (error) {
+    console.error("Gemini Error:", error);
     return "Intelligence Stream temporär unterbrochen.";
   }
 };
@@ -143,7 +149,44 @@ export const performDocumentAudit = async (
     return JSON.parse(response.text || '{}') as AuditResult;
   } catch (error) {
     console.error("Enterprise Intelligence Engine Error", error);
-    throw error;
+    // Return graceful fallback instead of crashing
+    return {
+        status: 'WARNING',
+        report: 'KI-Dienst nicht verfügbar. Bitte prüfen Sie den API Key.',
+        justification: 'Netzwerkfehler',
+        missingRequirements: [],
+        complianceScore: 0,
+        confidenceScore: 0,
+        dependencies: []
+    };
+  }
+};
+
+export const generateIntegrationStory = async (integrations: IntegrationStatus[]) => {
+  try {
+    const ai = getAIInstance();
+    
+    const context = integrations.map(i => 
+      `${i.systemName} (${i.type}): ${i.status}, Latency ${i.latencyMs}ms, Pending Events: ${i.pendingEvents}`
+    ).join('\n');
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Analysiere den Status des folgenden IT-Ökosystems ("The Digital Thread") für einen CTO.
+      
+      Systeme:
+      ${context}
+
+      AUFGABE:
+      Schreibe eine "Integration Story" (max 3 Sätze, Deutsch).
+      Beschreibe, wie die Daten zwischen den Silos fließen. Erwähne spezifische Systeme (z.B. Jira Tickets, SAP BOMs).
+      Wenn Systeme "Connected" sind, betone die Effizienz. Wenn "Disconnected", warne vor Datenlücken.
+      `,
+      config: { temperature: 0.7 }
+    });
+    return response.text;
+  } catch (error) {
+    return "Ecosystem Analysis temporär nicht verfügbar.";
   }
 };
 

@@ -3,7 +3,7 @@ import { ProjectState, Command, ReadModel, CommandType } from '../types';
 import { executeCommand, CommandResult } from '../commands/handlers';
 import { projectReadModel } from '../queries/projections';
 import { DomainEvent } from '../shared/events';
-import { performDocumentAudit, generateMarketingMaterials, getStageGuidance, generateIPWhitepaper } from './geminiService';
+import { performDocumentAudit, generateMarketingMaterials, getStageGuidance, generateIPWhitepaper, generateIntegrationStory } from './geminiService';
 
 const STORAGE_KEY = 'bluebanana_event_store_v1';
 
@@ -99,6 +99,24 @@ export class CQRSManager {
         });
       } catch (err) {
         console.error("AI Layer Failure", err);
+      } finally {
+        this.isBusy = false;
+        this.syncReadModel();
+      }
+    }
+
+    if (command.type === 'ANALYZE_ECOSYSTEM') {
+      this.isBusy = true;
+      this.syncReadModel();
+      try {
+        const story = await generateIntegrationStory(this.writeModel.integrations);
+        await this.dispatch({
+          type: 'RECEIVE_AI_RESULT',
+          payload: { integrationStory: story },
+          timestamp: Date.now()
+        });
+      } catch (err) {
+        console.error("Integration Story Failure", err);
       } finally {
         this.isBusy = false;
         this.syncReadModel();

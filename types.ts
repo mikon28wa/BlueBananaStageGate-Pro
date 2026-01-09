@@ -101,10 +101,21 @@ export interface RoadmapData {
 export interface IntegrationStatus {
   id: string;
   systemName: string;
-  type: 'ERP' | 'PLM' | 'CAD' | 'CRM';
+  type: 'ERP' | 'PLM' | 'CAD' | 'CRM' | 'ISSUE_TRACKER';
   status: 'CONNECTED' | 'DISCONNECTED' | 'SYNCING';
   lastSync: string;
   silosBroken: number;
+  latencyMs: number;
+  pendingEvents: number;
+}
+
+export interface IntegrationEvent {
+  id: string;
+  source: string;
+  target: string;
+  action: string;
+  timestamp: string;
+  dataSnippet: string;
 }
 
 export interface InfrastructureConfig {
@@ -164,7 +175,9 @@ export type CommandType =
   | 'GOVERNANCE_OVERRIDE'
   | 'VERIFY_CHAIN'
   | 'SYNC_INTEGRATION'
-  | 'SWITCH_INFRASTRUCTURE';
+  | 'SWITCH_INFRASTRUCTURE'
+  | 'ANALYZE_ECOSYSTEM'
+  | 'EXTERNAL_EVENT'; // Added for simulator
 
 export interface Command {
   type: CommandType;
@@ -210,6 +223,7 @@ export interface ReadModel {
   activeStageDetails: ProductStage | null;
   infrastructure: InfrastructureConfig;
   integrations: IntegrationStatus[];
+  integrationStory: string | null;
   roadmapView: RoadmapData[];
   financialAudit: {
     totalBudget: number;
@@ -236,4 +250,5 @@ export interface ProjectState {
   integrations: IntegrationStatus[];
   events: SystemEvent[];
   isChainVerified: boolean;
+  integrationStory: string | null;
 }

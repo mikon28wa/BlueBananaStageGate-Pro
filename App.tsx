@@ -12,6 +12,7 @@ import Governance from './pages/Governance';
 import Roadmap from './pages/Roadmap';
 import Swot from './pages/Swot';
 import Integration from './pages/Integration';
+import DigitalThread from './pages/DigitalThread';
 
 // INFRASTRUCTURE INITIALIZATION
 const manager = new CQRSManager({
@@ -22,7 +23,8 @@ const manager = new CQRSManager({
   infrastructure: INITIAL_INFRASTRUCTURE,
   integrations: INITIAL_INTEGRATIONS,
   events: [],
-  isChainVerified: false
+  isChainVerified: false,
+  integrationStory: null
 });
 
 const MotionDiv = motion.div as any;
@@ -122,7 +124,8 @@ const App: React.FC = () => {
               { path: '/', label: 'Governance' },
               { path: '/roadmap', label: 'Roadmap' },
               { path: '/swot', label: 'SWOT' },
-              { path: '/integration', label: 'Integration' }
+              { path: '/integration', label: 'Integration' },
+              { path: '/digital-thread', label: 'Digital Thread' }
             ].map(link => (
               <Link key={link.path} to={link.path} className={`relative px-6 py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all duration-300 ${isActive(link.path) ? 'text-white' : 'text-slate-400 hover:text-white'}`}>
                 {isActive(link.path) && <MotionDiv layoutId="nav-pill" className="absolute inset-0 bg-white/10 border border-white/10 rounded-xl shadow-sm" />}
@@ -202,6 +205,10 @@ const App: React.FC = () => {
               infra={readModel.infrastructure}
               dispatch={dispatch}
             />
+          } />
+
+          <Route path="/digital-thread" element={
+            <DigitalThread dispatch={dispatch} />
           } />
 
           <Route path="*" element={<Navigate to="/" replace />} />

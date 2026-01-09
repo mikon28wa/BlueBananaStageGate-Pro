@@ -1,8 +1,3 @@
-
-// MIGRATION COMPLETED
-// This file is obsolete and has been replaced by the structured CQRS architecture:
-// - orchestration: services/cqrsManager.ts
-// - write-side: commands/handlers.ts
-// - read-side: queries/projections.ts
-//
-// ACTION REQUIRED: This file can be safely deleted from the project.
+// This file has been deprecated and replaced by cqrsManager.ts and handlers.ts.
+// It is kept empty to avoid build errors if referenced elsewhere, though it should be safe to delete.
+export {};

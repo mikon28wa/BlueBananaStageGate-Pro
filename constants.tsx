@@ -25,10 +25,10 @@ export const INITIAL_INFRASTRUCTURE: InfrastructureConfig = {
 };
 
 export const INITIAL_INTEGRATIONS: IntegrationStatus[] = [
-  { id: 'i1', systemName: 'SAP S/4HANA', type: 'ERP', status: 'CONNECTED', lastSync: '10m ago', silosBroken: 85 },
-  { id: 'i2', systemName: 'Siemens Teamcenter', type: 'PLM', status: 'SYNCING', lastSync: '2m ago', silosBroken: 92 },
-  { id: 'i3', systemName: 'PTC Windchill', type: 'PLM', status: 'CONNECTED', lastSync: '1h ago', silosBroken: 78 },
-  { id: 'i4', systemName: 'Salesforce CRM', type: 'CRM', status: 'DISCONNECTED', lastSync: '2d ago', silosBroken: 45 }
+  { id: 'i1', systemName: 'SAP S/4HANA', type: 'ERP', status: 'CONNECTED', lastSync: '10m ago', silosBroken: 85, latencyMs: 24, pendingEvents: 0 },
+  { id: 'i2', systemName: 'Siemens Teamcenter', type: 'PLM', status: 'SYNCING', lastSync: '2m ago', silosBroken: 92, latencyMs: 120, pendingEvents: 3 },
+  { id: 'i3', systemName: 'Jira Software', type: 'ISSUE_TRACKER', status: 'CONNECTED', lastSync: 'Real-time', silosBroken: 100, latencyMs: 45, pendingEvents: 12 },
+  { id: 'i4', systemName: 'Salesforce CRM', type: 'CRM', status: 'DISCONNECTED', lastSync: '2d ago', silosBroken: 45, latencyMs: 0, pendingEvents: 0 }
 ];
 
 export const INITIAL_STAGES: ProductStage[] = [
